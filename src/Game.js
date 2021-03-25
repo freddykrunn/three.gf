@@ -192,6 +192,26 @@ GF.Game = class Game extends GF.StateMachine {
     //#region API
 
     /**
+     * Set resolution ratio
+     * @param {*} ratio 
+     */
+     setResolutionRatio(ratio) {
+        this.resolutionRatio = ratio != null ? ratio : 1;
+        if (this.rendererSize != null) {
+            this.updateRenderSize(this.renderer.domElement.offsetWidth, this.renderer.domElement.offsetHeight);
+        }
+    }
+
+    /**
+     * Enable/Disable shadows auto update (set to false for static shadows)
+     * @param {boolean} enable 
+     */
+     enableShadowsAutoUpdate(enable) {
+        this.renderer.shadowMap.autoUpdate = enable;
+        this.renderer.shadowMap.needsUpdate = true;
+    }
+
+    /**
      * On game canvas container is resized
      */
     onContainerResize(width, height) {

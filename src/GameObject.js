@@ -56,7 +56,7 @@ GF.GameObject = class GameObject extends GF.StateMachine {
             this.deltaCount = 0;
             this.tickDeltaCount = 0;
 
-            this.object3D = GF.Utils.build3DObject(this.object3DParams);
+            this.object3D = GF.Utils.build3DObject(this.loader, this.object3DParams);
             if (this.object3D != null) {
                 this.setObject3D(this.object3D);
             }

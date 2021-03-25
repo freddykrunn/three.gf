@@ -356,13 +356,15 @@ function onPageLoad() {
                 className: "PongMainPage"
             }
         ],
-		[
-			// objects
-			"src/objects/ball.js",
-			"src/objects/paddle.js",
-			// pages
-			"src/pages/game-page.js",
-		],
+		{
+            objects: [
+                "ball",
+                "paddle"
+            ],
+            pages: [
+                "gamePage"
+            ]
+        },
 		// after load source files callback
 		() => {
 			// boot (as there are no assets to load we can do a direct game boot 'default-no-assets')
@@ -383,7 +385,7 @@ function onStart() {
     this.defineVariable(VAR_PLAYER_2_SCORE, 0);
 
     // game floor
-    var gameFloor = GF.Utils.build3DObject({
+    var gameFloor = GF.Utils.build3DObject(this.loader, {
         model: {
             type: "box",
             size: {x: 40, y: 1, z: 26}
@@ -403,16 +405,16 @@ function onStart() {
     this.addToScene(gameFloor);
 
     // walls
-    var wallGeometry = GF.Utils.buildGeometry({
+    var wallGeometry = GF.Utils.buildGeometry(this.loader, {
         type: "box",
         size: {x: 40, y: 3, z: 1}
     });
-    var wallMaterial = GF.Utils.buildMaterial({
+    var wallMaterial = GF.Utils.buildMaterial(this.loader, {
         type: "phong",
         color: "rgb(80, 80, 80)",
         shininess: 5
     });
-    var wall01 = GF.Utils.build3DObject({
+    var wall01 = GF.Utils.build3DObject(this.loader, {
         model: wallGeometry,
         material: wallMaterial,
         shadows: {
@@ -424,7 +426,7 @@ function onStart() {
     this.addToScene(wall01);
     this.collisionManager.addVolume(null, GF.Utils.buildCollisionVolumeFrom3DObject(wall01), wall01.position, false);
 
-    var wall02 = GF.Utils.build3DObject({
+    var wall02 = GF.Utils.build3DObject(this.loader, {
         model: wallGeometry,
         material: wallMaterial,
         shadows: {
@@ -525,7 +527,7 @@ fs.writeFileSync(dir + 'index.html', `
 `);
   
 // write game page file
-fs.writeFileSync(dir + '/src/pages/game-page.js', `
+fs.writeFileSync(dir + '/src/pages/gamePage.js', `
 /**
  * Pong Main Page
  */

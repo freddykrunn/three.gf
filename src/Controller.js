@@ -61,30 +61,51 @@ function createContentContainer(container, zIndex) {
 }
 
 /**
+ * Load scripts recursive
+ * @param {string[]} list 
+ * @param {function} onFinish 
+ */
+function loadScripsRecursive(list, prefix, onFinish) {
+    if (list.length > 0) {
+        var file = list.splice(0, 1);
+
+        var s = document.createElement('script');
+        s.src = prefix + file + ".js";
+        s.type = "text/javascript";
+        s.onload = function () {
+            loadScripsRecursive(list, prefix, onFinish);
+        }
+        document.body.appendChild(s);
+    } else {
+        onFinish();
+    }
+}
+
+/**
  * Controller
  * It is required to have declared two default pages: LoadingPage and GamePage
  */
 GF.GameController = class GameController {
     constructor(container, gameClass, pages, sourceFilesToLoad, afterLoad) {
-        if (sourceFilesToLoad instanceof Array) {
-            var self = this;
-            var i = sourceFilesToLoad.length;
-            for (const sourceScriptPath of sourceFilesToLoad) {
-                var script = document.createElement('script');
-                script.onload = function () {
-                    i--;
-                    if (i === 0) {
-                        self._init(container, gameClass, pages, afterLoad);
-                    }
-                };
-                script.src = sourceScriptPath;
-                
-                document.body.appendChild(script); //or something of the likes
-            }
-        } else {
+        if (sourceFilesToLoad == null) {
             this._init(container, gameClass, pages, afterLoad);
+        } else if (sourceFilesToLoad instanceof Array) {
+            loadScripsRecursive(sourceFilesToLoad, "", () => {
+                setTimeout(() => {
+                    this._init(container, gameClass, pages, afterLoad);
+                })
+            });            
+        } else {
+            var sourcePath = sourceFilesToLoad["src"] != null ? sourceFilesToLoad["src"] : "src";
+
+            loadScripsRecursive(sourceFilesToLoad["objects"], sourcePath + "/objects/", () => {
+                loadScripsRecursive(sourceFilesToLoad["pages"], sourcePath + "/pages/", () => {
+                    setTimeout(() => {
+                        this._init(container, gameClass, pages, afterLoad);
+                    })
+                }); 
+            });
         }
-        
     }
 
     /**

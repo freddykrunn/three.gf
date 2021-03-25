@@ -128,7 +128,9 @@ GF.Page = class Page {
      * @param {number} height 
      */
     _resize(width, height) {
-        this.redrawCanvas();
+        if (this.canvasHTMLElement) {
+            this.redrawCanvas();
+        }
     }
 
     //#endregion

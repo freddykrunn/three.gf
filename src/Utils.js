@@ -31,15 +31,15 @@ GF.Utils = {
      * @param {any} params 
      * @returns a new THREE.Mesh
      */
-    build3DObject(params) {
+    build3DObject(loader, params) {
         var object3D;
 
         if (params != null && !(params.isObject3D && params.clone != null) && params.model != null && params.material != null) {
             // process model
-            var geometry = params.model.isBufferGeometry ? params.model : this.buildGeometry(params.model);
+            var geometry = params.model.isBufferGeometry ? params.model : this.buildGeometry(loader, params.model);
             
             // process material
-            var material = params.material.isMaterial ? params.material : this.buildMaterial(params.material);
+            var material = params.material.isMaterial ? params.material : this.buildMaterial(loader, params.material);
 
             if (geometry != null && material != null) {
                 object3D = new THREE.Mesh(geometry, material);
@@ -59,7 +59,7 @@ GF.Utils = {
                 }
             }
         } else {
-            object3D = this.object3DParams;
+            object3D = params;
         }
 
         return object3D;
@@ -69,11 +69,11 @@ GF.Utils = {
      * Build Geometry
      * @param {any} params 
      */
-    buildGeometry(params) {
+    buildGeometry(loader, params) {
         // process model
         var geometry = null;
         if (typeof(params) === "string") {
-            geometry = this.game.loader.get(params);
+            geometry = loader.loader.get(params);
         } else {
             if (params.type === "box") {
                 geometry = new THREE.BoxGeometry(params.size.x, params.size.y, params.size.z);
@@ -93,11 +93,11 @@ GF.Utils = {
      * Build Material
      * @param {any} params 
      */
-    buildMaterial(params) {
+    buildMaterial(loader, params) {
         var material = null;
 
         if (typeof(params) === "string") {
-            material = this.game.loader.get(params);
+            material = loader.get(params);
         } else {
             if (params.type === "phong") {
                 material = new THREE.MeshPhongMaterial()
@@ -114,7 +114,7 @@ GF.Utils = {
             }
 
             if (params.texture) {
-                material.map = this.game.loader.get(params.texture);
+                material.map = loader.get(params.texture);
             }
 
             material.opacity = params.opacity != null ? params.opacity : 1;
@@ -127,21 +127,21 @@ GF.Utils = {
                 material.specular.copy(new THREE.Color(params.specular != null ? params.specular : 0xFFFFFF)); 
 
                 if (params.reflectionTexture) {
-                    material.envMap = this.game.loader.get(params.reflectionTexture);
+                    material.envMap = loader.get(params.reflectionTexture);
                     material.reflectivity = params.reflectivity;
                 }
 
                 if (params.bumpTexture) {
-                    material.bumpMap = this.game.loader.get(params.bumpTexture);
+                    material.bumpMap = loader.get(params.bumpTexture);
                     material.bumpScale = params.bumpScale;
                 }
 
                 if (params.specularTexture) {
-                    material.specularMap = this.game.loader.get(params.specularTexture);
+                    material.specularMap = loader.get(params.specularTexture);
                 }
 
                 if (params.emissiveTexture) {
-                    material.emissiveMap = this.game.loader.get(params.emissiveTexture);
+                    material.emissiveMap = loader.get(params.emissiveTexture);
                     material.emissive = new THREE.Color(0xFFFFFF);
                     material.emissiveIntensity = params.emissiveIntensity;
                 }
