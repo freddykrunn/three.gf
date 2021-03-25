@@ -14,18 +14,19 @@ Main Features:
 * An animation manager (animate value transitions, animate transitions of camera, apply effects on screen, etc..)
 * An event system (create simple timed events or complex event chains)
 * Input management (easily get input from keyboard and connected gamepads)
-* State machines and events control how objects behave and communicate during the game
-* UI management system (Create different pages for the game, menus, loading screens, etc..)
-* Audio playback
+* State machines and Event publish/subscription, to control how objects behave and communicate during the game
+* UI management system (Create different pages for the game HUD, menus, loading screens, etc..)
+* Audio effects and music
 * Particle systems and particle effects
 * Default Material and Mesh generation
+* Support for rigged and animated models
 * Other generic utils
 
 ### Get started
 
 Currently there is no documentation available (future work). But here is a simple tutorial:
 
-1. You can use it in any javascript/HTML5 web app. You can assemble a simple http server in a folder
+1. You can use it in any javascript/HTML5 web app. You can, for example, assemble a simple http server in a folder and so the following:
 2. In your `index.html` include the framework script
 ```html
     <script src="jgf.min.js" type="text/javascript"></script>
