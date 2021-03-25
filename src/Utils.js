@@ -43,8 +43,8 @@ GF.Utils = {
 
             if (geometry != null && material != null) {
                 object3D = new THREE.Mesh(geometry, material);
-                object3D.castShadow =  params.shadows != null ? params.shadows.cast : true;
-                object3D.receiveShadow = params.shadows != null ? params.shadows.receive : true;
+                object3D.castShadow =  params.shadows != null ? params.shadows.cast : false;
+                object3D.receiveShadow = params.shadows != null ? params.shadows.receive : false;
 
                 if (params.position) {
                     object3D.position.set(params.position.x, params.position.y, params.position.z)
@@ -73,7 +73,7 @@ GF.Utils = {
         // process model
         var geometry = null;
         if (typeof(params) === "string") {
-            geometry = loader.loader.get(params);
+            geometry = loader.get(params);
         } else {
             if (params.type === "box") {
                 geometry = new THREE.BoxGeometry(params.size.x, params.size.y, params.size.z);
@@ -83,6 +83,8 @@ GF.Utils = {
             } else if (params.type === "cylinder") {
                 var segments = params.segments != null ? params.segments : 32;
                 geometry = new THREE.CylinderGeometry(params.radius, params.radius, params.height, segments);
+            } else {
+                geometry = new THREE.Geometry();
             }
         }
         
@@ -105,45 +107,57 @@ GF.Utils = {
                 material = new THREE.MeshLambertMaterial();
             } else if (params.type === "basic") {
                 material = new THREE.MeshBasicMaterial();
+            } else if (params.type === "toon") {
+                material = new THREE.MeshToonMaterial();
+            } else {
+                material = new THREE.MeshBasicMaterial();
             }
 
-            material.color.copy(new THREE.Color(params.color != null ? params.color : 0xFFFFFF));
+            // color
+            material.color = new THREE.Color(params.color != null ? params.color : 0xFFFFFF);
+
+            // emissive color
             if (params.emissiveColor) {
-                material.emissiveColor.copy(new THREE.Color(params.emissiveColor));
+                material.emissive = new THREE.Color(params.emissiveColor);
+                material.emissiveMap = params.emissiveTexture != null ? loader.get(params.emissiveTexture) : null;
                 material.emissiveIntensity = params.emissiveIntensity != null ? params.emissiveIntensity : 1;
             }
 
+            // texture
             if (params.texture) {
                 material.map = loader.get(params.texture);
             }
 
+            // opacity
             material.opacity = params.opacity != null ? params.opacity : 1;
             if (material.opacity != 1) {
                 material.transparent = true;
             }
 
-            if (params.type === "phong") {
+            // reflection
+            if (params.reflectionTexture) {
+                material.envMap = loader.get(params.reflectionTexture);
+                material.reflectivity = params.reflectivity;
+                if (params.reflectivityOperation) {
+                    material.combine = params.reflectivityOperation;
+                }
+            }
+
+            // specular
+            if (params.type === "phong" || params.type === "lambert") {
+                material.specular = new THREE.Color(params.specular != null ? params.specular : 0xFFFFFF); 
                 material.shininess = params.shininess;
-                material.specular.copy(new THREE.Color(params.specular != null ? params.specular : 0xFFFFFF)); 
-
-                if (params.reflectionTexture) {
-                    material.envMap = loader.get(params.reflectionTexture);
-                    material.reflectivity = params.reflectivity;
-                }
-
-                if (params.bumpTexture) {
-                    material.bumpMap = loader.get(params.bumpTexture);
-                    material.bumpScale = params.bumpScale;
-                }
 
                 if (params.specularTexture) {
                     material.specularMap = loader.get(params.specularTexture);
                 }
+            }
 
-                if (params.emissiveTexture) {
-                    material.emissiveMap = loader.get(params.emissiveTexture);
-                    material.emissive = new THREE.Color(0xFFFFFF);
-                    material.emissiveIntensity = params.emissiveIntensity;
+            // bump
+            if (params.type === "phong") {
+                if (params.bumpTexture) {
+                    material.bumpMap = loader.get(params.bumpTexture);
+                    material.bumpScale = params.bumpScale;
                 }
             }
         }

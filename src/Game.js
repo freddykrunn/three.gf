@@ -735,19 +735,8 @@ GF.Game = class Game extends GF.StateMachine {
                 }
             }
 
-            //Add the elapsed time to the lag counter
-            this.lag += elapsed;
-            // update the frame if the lag counter is greater than or equal to the frame duration
-            while (this.lag >= MS_PER_UPDATE){  
-                // update the logic
-                this.update(MS_PER_UPDATE * this.speed);
-                // reduce the lag counter by the frame duration
-                this.lag -= MS_PER_UPDATE;
-
-                if (!this.running) {
-                    return;
-                }
-            }
+            // update
+            this.update(MS_PER_UPDATE * this.speed);
 
             // update screen shaker
             this.screenShaker.update(this.camera);
