@@ -149,7 +149,7 @@ function onStart() {
     this.setCamera({x: 0, y: 0, z: 5}, {x: 0, y: 0, z: 0});
 
     // add a cube
-    cube = new GF.GameObject({
+    cube = new GF.GameObject(this.loader, {
         model: {
             type: "box",
             size: {x: 1, y: 1, z: 1}
@@ -581,7 +581,7 @@ class PongMainPage extends GF.Page {
   
 // write game loading file
 fs.writeFileSync(dir + '/src/objects/ball.js', `
-const BALL_SPEED = 2.5;
+const BALL_SPEED = 25;
 
 /**
  * Ball

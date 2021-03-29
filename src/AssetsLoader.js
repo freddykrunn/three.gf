@@ -294,7 +294,7 @@ GF.ImageFileLoader = class ImageFileLoader extends GF.FileLoader {
 GF.OBJFileLoader = class OBJFileLoader extends GF.FileLoader {
     constructor(type) {
         super(type);
-        this.loader = new THREEx.OBJLoader();
+        this.loader = new THREE.OBJLoader();
     }
 
     /**
@@ -514,7 +514,7 @@ GF.THREEJSONFileLoader = class THREEJSONFileLoader extends GF.FileLoader {
             this.loader = new THREEOldJSONLoader();
         } else {
             this.loader = null;
-            console.warn("[WARNING] Cannot instantiate loader 'THREEJSONFileLoader': The current three.js version doesn't support 'JSONLoader'");
+            // console.warn("[WARNING] Cannot instantiate loader 'THREEJSONFileLoader': The current three.js version doesn't support 'JSONLoader'");
         }
     }
 
@@ -526,7 +526,7 @@ GF.THREEJSONFileLoader = class THREEJSONFileLoader extends GF.FileLoader {
      */
     load(path, onFinish, onError) {
         if (this.loader == null) {
-            console.warn("[WARNING] Cannot load: The current three.js version doesn't support 'JSONLoader'");
+            // console.warn("[WARNING] Cannot load: The current three.js version doesn't support 'JSONLoader'");
         } else {
             // load a texture
             this.loader.load(
@@ -554,7 +554,7 @@ GF.FBXFileLoader = class FBXFileLoader extends GF.FileLoader {
             this.loader = new THREE.FBXLoader();
         } else {
             this.loader = null;
-            console.warn("[WARNING] Cannot instantiate loader 'THREE.FBXLoader': The current three.js version doesn't support 'THREE.FBXLoader'");
+            // console.warn("[WARNING] Cannot instantiate loader 'THREE.FBXLoader': The current three.js version doesn't support 'THREE.FBXLoader'");
         }
     }
 
@@ -566,7 +566,7 @@ GF.FBXFileLoader = class FBXFileLoader extends GF.FileLoader {
      */
     load(path, onFinish, onError) {
         if (this.loader == null) {
-            console.warn("[WARNING] Cannot load: The current three.js version doesn't support 'THREE.FBXLoader'");
+            // console.warn("[WARNING] Cannot load: The current three.js version doesn't support 'THREE.FBXLoader'");
         } else {
             // load a texture
             this.loader.load(

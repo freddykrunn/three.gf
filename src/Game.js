@@ -1,7 +1,7 @@
 /**
  * Camera type
  */
-GF.CAMERA_TYPE = {
+ GF.CAMERA_TYPE = {
     PERSPECTIVE: 0,
     ORTHO: 1
 }
@@ -26,13 +26,29 @@ GF.COLLISION_SPHERE = "collision_sphere";
 GF.COLLISION_CYLINDER = "collision_cylinder";
 
 /**
- * FPS 
+ * Delta time multiplier (convert 'ms' to 's')
+ */
+const DELTA_MULTIPLIER = 0.001;
+
+/**
+ * Ideal FPS 
  */
 const FPS = 60;
+
 /**
- * Milliseconds per game loop update
+ * Ideal delta-time per game loop update
  */
 const MS_PER_UPDATE = 1000 / FPS;
+
+/**
+ * Minimum acceptable FPS 
+ */
+const MIN_FPS = 25;
+
+/**
+ * Max delta-time per game loop update
+ */
+const MAX_MS_PER_UPDATE = 1000 / MIN_FPS;
 
 /**
  * Game
@@ -115,10 +131,6 @@ GF.Game = class Game extends GF.StateMachine {
         this.camera.position.set(0, 0, 0);
         this.camera.lookAt(new THREE.Vector3(0, 0, 1));
 
-        if (params != null && params.limitRenderedObjects != null) {
-            this.limitRenderedObjects = params.limitRenderedObjects;
-        }
-
         // event manager
         this.eventManager = new GF.GameEventManager();
         this.inputManager = new GF.GameInputManager(this);
@@ -128,22 +140,21 @@ GF.Game = class Game extends GF.StateMachine {
         // containers
         this.objects = {};
         this.objectsArray = [];
+        this.objectsToUpdateArray = [];
         this.intersectableObjects = [];
         this.rayCollisionObjects = [];
         this.variables = {};
         this.variablesChangeEvents = {};
         this.gameEvents = {};
 
-        // raycaster
+        // raycaster variables
         this.mouseCoords = new THREE.Vector2();
 
-        this.deltaCount = 0;
+        // game speed
         this.speed = 1;
-        this.tickDeltaCount = 0;
 
         this.screenShaker = ScreenShake();
 
-        // animate function
         this.animateFunction = this.animate.bind(this);
     }
 
@@ -163,21 +174,19 @@ GF.Game = class Game extends GF.StateMachine {
         this.renderer.domElement.style.width = width + 'px';
         this.renderer.domElement.style.height = height  + 'px';
 
-        this.rendererSize = this.renderer.getSize();
+        this.rendererSize = new THREE.Vector2();
+        this.renderer.getSize(this.rendererSize);
     }
 
     //#region Abstract
 
     onInit(){
-        this.deltaCount = 0;
-        this.tickDeltaCount = 0;
+        this._tickDeltaCount = 0;
     }
     onUpdate(delta){
         super.onUpdate(delta);
     }
     onDestroy(){
-        this.deltaCount = 0;
-        this.tickDeltaCount = 0;
     }
     onPointerLockChange(locked) {}
 
@@ -206,8 +215,15 @@ GF.Game = class Game extends GF.StateMachine {
      * Enable/Disable shadows auto update (set to false for static shadows)
      * @param {boolean} enable 
      */
-     enableShadowsAutoUpdate(enable) {
+    enableShadowsAutoUpdate(enable) {
         this.renderer.shadowMap.autoUpdate = enable;
+        this.renderer.shadowMap.needsUpdate = true;
+    }
+
+    /**
+     * Update shadow maps
+     */
+     updateShadowMaps() {
         this.renderer.shadowMap.needsUpdate = true;
     }
 
@@ -475,6 +491,13 @@ GF.Game = class Game extends GF.StateMachine {
         }
         this.objectsArray.push(object);
 
+        if (!object._noUpdate) {
+            if (this.objectsToUpdateArray == null) {
+                this.objectsToUpdateArray = [];
+            }
+            this.objectsToUpdateArray.push(object);
+        }
+
         return id;
     }
 
@@ -518,12 +541,21 @@ GF.Game = class Game extends GF.StateMachine {
                 object._destroy();
             }
             delete this.objects[id];
-        }
 
-        if (this.objectsArray != null) {
-            var i = this.objectsArray.findIndex(o => o === object);
-            if (i >= 0) {
-                this.objectsArray.splice(i, 1);
+            if (this.objectsArray != null) {
+                var i = this.objectsArray.findIndex(o => o === object);
+                if (i >= 0) {
+                    this.objectsArray.splice(i, 1);
+                }
+            }
+    
+            if (!object._noUpdate) {
+                if (this.objectsToUpdateArray != null) {
+                    var i = this.objectsToUpdateArray.findIndex(o => o === object);
+                    if (i >= 0) {
+                        this.objectsToUpdateArray.splice(i, 1);
+                    }
+                }
             }
         }
     }
@@ -538,6 +570,7 @@ GF.Game = class Game extends GF.StateMachine {
         }
         this.objects = {};
         this.objectsArray = [];
+        this.objectsToUpdateArray = [];
     }
 
     /**
@@ -650,10 +683,9 @@ GF.Game = class Game extends GF.StateMachine {
      */
     resume() {
         if (!this.running) {
-            this.running = true;
             this.currentTime = new Date().valueOf();
-            this.delta = 0;
             this.lag = 0;
+            this.running = true;
             this.animate();
         }
     }
@@ -663,9 +695,6 @@ GF.Game = class Game extends GF.StateMachine {
      */
     pause() {
         if (this.running) {
-            if (this.animationFrameRequest) {
-                cancelAnimationFrame(this.animationFrameRequest);
-            }
             this.running = false;
         }
     }
@@ -706,9 +735,6 @@ GF.Game = class Game extends GF.StateMachine {
             this.mouseMoveCallback = this.onMouseMove.bind(this);
             document.addEventListener('mousemove', this.mouseMoveCallback, false);
         }
-
-        this.numUpdates = 0;
-        this.upt = 0;
     }
 
     /**
@@ -716,27 +742,10 @@ GF.Game = class Game extends GF.StateMachine {
      */
     animate() {
         if (this.running === true) {
-
-            // calculate delta
-            this.newTime = new Date().valueOf();
-            const elapsed = this.newTime - this.currentTime;
-            this.currentTime = this.newTime;
-
-            // limit updating of objects outside the view
-            if (this.camera != null && this.limitRenderedObjects === true) {
-                for (const object in this.objects) {
-                    if (this.objects[object].object3D != null) {
-                        if (this.objects[object].object3D.position.distanceTo(this.camera.position) < this.viewFarPlane * 1.2) {
-                            this.objects[object]._setActive(true);
-                        } else {
-                            this.objects[object]._setActive(false);
-                        }
-                    }
-                }
-            }
-
             // update
-            this.update(MS_PER_UPDATE * this.speed);
+            this.newTime = new Date().valueOf();
+            this.update(Math.min(this.newTime - this.currentTime, MAX_MS_PER_UPDATE) * this.speed);
+            this.currentTime = this.newTime;
 
             // update screen shaker
             this.screenShaker.update(this.camera);
@@ -774,9 +783,12 @@ GF.Game = class Game extends GF.StateMachine {
                 }
             }
 
-
             // animation frame
             this.animationFrameRequest = requestAnimationFrame(this.animateFunction);
+        } else {
+            if (this.animationFrameRequest) {
+                cancelAnimationFrame(this.animationFrameRequest);
+            }
         }
     }
 
@@ -794,8 +806,8 @@ GF.Game = class Game extends GF.StateMachine {
             this.updateCallback(delta);
         }
 
-        for (var i = 0; i < this.objectsArray.length; i++) {
-            this.objectsArray[i]._update(delta);
+        for (var i = 0; i < this.objectsToUpdateArray.length; i++) {
+            this.objectsToUpdateArray[i]._update(delta);
         }
 
         this.collisionManager._update();

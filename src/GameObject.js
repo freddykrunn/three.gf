@@ -18,15 +18,15 @@ GF.GameObject = class GameObject extends GF.StateMachine {
      * Constructor
      * @param {any} object3DParams params for pre-build the 3D representation of this object
      * @param {boolean} affectsRayCollision if this objects affects ray collision
+     * @param {boolean} affectsRayCollision if this object will not be updated every frame (static objects)
      */
-    constructor(object3DParams, affectsRayCollision = false) {
+    constructor(object3DParams, affectsRayCollision = false, noUpdate = false) {
         super();
 
         this.alive = false;
-        this.deltaCount = 0;
-        this.tickDeltaCount = 0;
 
-        this.affectsRayCollision = affectsRayCollision;
+        this._affectsRayCollision = affectsRayCollision;
+        this._noUpdate = noUpdate;
 
         this.keySubscriptions = [];
         this.mouseSubscriptions = [];
@@ -53,10 +53,31 @@ GF.GameObject = class GameObject extends GF.StateMachine {
             this.loader = game.loader;
             this.game = game;
             this.alive = true;
-            this.deltaCount = 0;
-            this.tickDeltaCount = 0;
+            this._tickDeltaCount = 0;
 
-            this.object3D = GF.Utils.build3DObject(this.loader, this.object3DParams);
+            if (this.object3DParams) {
+                this.object3D = GF.Utils.build3DObject(this.loader, this.object3DParams);
+
+                // setup animated model
+                if (this.object3DParams.skeletalAnimations != null && this.object3D != null) {
+                    const skinnedMesh = this.object3D.type === "SkinnedMesh" ? this.object3D : this.object3D.children.find(c => c.type === "SkinnedMesh");
+                    if (skinnedMesh != null) {
+                        this.skinnedMesh = skinnedMesh;
+                        this.setupAnimated3DModelFromMesh(this.object3D);
+                    } else {
+                        this.setupAnimated3DModel(this.object3D.geometry, this.object3D.material);
+                        this.skinnedMesh = this.object3D;
+                    }
+
+                    this.armature = this.object3D.children.find(c => c.type === "Group" && c.name === "Armature");
+
+                    // animations properties
+                    for (const action of this.object3DParams.skeletalAnimations) {
+                        this.updateAnimationActionProperties(action.name, action.speed, action.clamp, action.loop ? null : {type: THREE.LoopOnce, repetitions: 0});
+                    }
+                }
+            }
+
             if (this.object3D != null) {
                 this.setObject3D(this.object3D);
             }
@@ -97,9 +118,6 @@ GF.GameObject = class GameObject extends GF.StateMachine {
             this.offMouseSubscriptions();
 
             this.onDestroy();
-
-            this.deltaCount = 0;
-            this.tickDeltaCount = 0;
 
             if (this.sceneAddedObjects) {
                 for (const object3D of this.sceneAddedObjects) {
@@ -209,15 +227,35 @@ GF.GameObject = class GameObject extends GF.StateMachine {
         }
         this.object3D = object3D;
         if (this.object3D) {
-            this.game.addToScene(this.object3D, this.affectsRayCollision);
+            this.game.addToScene(this.object3D, this._affectsRayCollision);
             this.position = this.object3D.position;
             this.rotation = this.object3D.rotation;
             this.scale = this.object3D.scale;
+            this.material = this.object3D.material;
         } else {
             this.position = new THREE.Vector3(0,0,0);
             this.rotation = new THREE.Vector3(0,0,0);
             this.scale = new THREE.Vector3(0,0,0);
+            this.material = null;
         }
+    }
+
+    /**
+     * Get an armature bone
+     * @param {string} name 
+     * @returns the bone object
+     */
+    getArmatureBone(name) {
+        if (this.armature != null) {
+            let result;
+            this.armature.traverse((object) => {
+                if (object.name === name) {
+                    result = object;
+                }
+            });
+            return result;
+        }
+        return null;
     }
 
     /**
@@ -445,7 +483,7 @@ GF.GameObject = class GameObject extends GF.StateMachine {
 
         // update animation mixer
         if (this.animationMixer) {
-            this.animationMixer.update(delta / 1000);
+            this.animationMixer.update(delta * DELTA_MULTIPLIER);
 
             if (!this.animationActions[this.animationActiveAction].isRunning() && this.currentAnimationFinishCallback) {
                 this.currentAnimationFinishCallback();

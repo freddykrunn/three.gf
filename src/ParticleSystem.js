@@ -320,11 +320,11 @@ GF.ExplosionEffect = function(game, position, haloParticles, fireParticles) {
 		geometry.setAttribute('opacity', new THREE.Float32BufferAttribute( opacity, 1 ) );
 
 		// dynamic flag
-		geometry.attributes.position.dynamic = true;
-		geometry.attributes.speed.dynamic = true;
-		geometry.attributes.life.dynamic = true;
-		geometry.attributes.size.dynamic = true;
-		geometry.attributes.opacity.dynamic = true;
+		geometry.attributes.position.setUsage(THREE.DynamicDrawUsage);
+		geometry.attributes.speed.setUsage(THREE.DynamicDrawUsage);
+		geometry.attributes.life.setUsage(THREE.DynamicDrawUsage);
+		geometry.attributes.size.setUsage(THREE.DynamicDrawUsage);
+		geometry.attributes.opacity.setUsage(THREE.DynamicDrawUsage);
 
 		var material = getParticleMaterial(game, this.haloParticles.texture, new THREE.Color(this.haloParticles.color), this.haloParticles.opacity, true)
 		
@@ -352,11 +352,11 @@ GF.ExplosionEffect = function(game, position, haloParticles, fireParticles) {
 		geometry.setAttribute('opacity', new THREE.Float32BufferAttribute( opacity, 1 ) );
 
 		// dynamic flag
-		geometry.attributes.position.dynamic = true;
-		geometry.attributes.speed.dynamic = true;
-		geometry.attributes.life.dynamic = true;
-		geometry.attributes.size.dynamic = true;
-		geometry.attributes.opacity.dynamic = true;
+		geometry.attributes.position.setUsage(THREE.DynamicDrawUsage);
+		geometry.attributes.speed.setUsage(THREE.DynamicDrawUsage);
+		geometry.attributes.life.setUsage(THREE.DynamicDrawUsage);
+		geometry.attributes.size.setUsage(THREE.DynamicDrawUsage);
+		geometry.attributes.opacity.setUsage(THREE.DynamicDrawUsage);
 
 		var material = getParticleMaterial(game, this.fireParticles.texture, new THREE.Color(this.fireParticles.color), this.fireParticles.opacity, true)
 		
@@ -369,77 +369,92 @@ GF.ExplosionEffect = function(game, position, haloParticles, fireParticles) {
 	}
 
 	/**
+	 * Set position
+	 */
+	this.setPosition = function (x, y, z) {
+		if (this.halo) {
+			this.halo.position.set(x, y, z);
+		}
+
+		if (this.fire) {
+			this.halo.position.set(x, y, z)
+		}
+	}
+
+	/**
 	 * Reset effect simulation
 	 */
 	this.play = function () {
-		this.finished = false;
+		if (this.finished) {
+			this.finished = false;
 
-		// update halo particles
-		if (this.haloParticles && this.haloParticlesAttributes) {
-			var angleIncrement = (Math.PI * 2) / this.haloParticles.particleCount
-			for (var i = 0; i < this.haloParticles.particleCount; i++) {
-				positionIndex = i * 3;
+			// update halo particles
+			if (this.haloParticles && this.haloParticlesAttributes) {
+				var angleIncrement = (Math.PI * 2) / this.haloParticles.particleCount
+				for (var i = 0; i < this.haloParticles.particleCount; i++) {
+					positionIndex = i * 3;
 
-				if (this.haloParticlesAttributes.life.array[i] === 0) {
-					// set life
-					this.haloParticlesAttributes.life.array[i] = this.haloParticles.life;
+					if (this.haloParticlesAttributes.life.array[i] === 0) {
+						// set life
+						this.haloParticlesAttributes.life.array[i] = this.haloParticles.life;
 
-					// set size
-					this.haloParticlesAttributes.size.array[i] = 1;
+						// set size
+						this.haloParticlesAttributes.size.array[i] = 1;
 
-					// opacity
-					this.haloParticlesAttributes.opacity.array[i] = 1;
+						// opacity
+						this.haloParticlesAttributes.opacity.array[i] = 1;
 
-					// set position
-					this.haloParticlesAttributes.position.array[positionIndex] = 0;
-					this.haloParticlesAttributes.position.array[positionIndex + 1] = 0;
-					this.haloParticlesAttributes.position.array[positionIndex + 2] = 0;
+						// set position
+						this.haloParticlesAttributes.position.array[positionIndex] = 0;
+						this.haloParticlesAttributes.position.array[positionIndex + 1] = 0;
+						this.haloParticlesAttributes.position.array[positionIndex + 2] = 0;
 
-					// set speed
-					speed = new THREE.Vector3(
-						Math.cos(angleIncrement * i),
-						Math.sin((Math.random() * this.haloParticles.maxSpeedAngle * 2) - this.haloParticles.maxSpeedAngle),
-						Math.sin(angleIncrement * i)
-					);
-					speed.multiplyScalar(this.haloParticles.minSpeed + (Math.random() * (this.haloParticles.maxSpeed - this.haloParticles.minSpeed)));
+						// set speed
+						speed = new THREE.Vector3(
+							Math.cos(angleIncrement * i),
+							Math.sin((Math.random() * this.haloParticles.maxSpeedAngle * 2) - this.haloParticles.maxSpeedAngle),
+							Math.sin(angleIncrement * i)
+						);
+						speed.multiplyScalar(this.haloParticles.minSpeed + (Math.random() * (this.haloParticles.maxSpeed - this.haloParticles.minSpeed)));
 
-					this.haloParticlesAttributes.speed.array[positionIndex] = speed.x;
-					this.haloParticlesAttributes.speed.array[positionIndex + 1] = speed.y;
-					this.haloParticlesAttributes.speed.array[positionIndex + 2] = speed.z;
+						this.haloParticlesAttributes.speed.array[positionIndex] = speed.x;
+						this.haloParticlesAttributes.speed.array[positionIndex + 1] = speed.y;
+						this.haloParticlesAttributes.speed.array[positionIndex + 2] = speed.z;
+					}
 				}
+
+				this.haloParticlesAttributes.speed.needsUpdate = true;
 			}
 
-			this.haloParticlesAttributes.speed.needsUpdate = true;
-		}
+			// update fire particles
+			if (this.fireParticles && this.fireParticlesAttributes) {
+				for (var i = 0; i < this.fireParticles.particleCount; i++) {
+					positionIndex = i * 3;
 
-		// update fire particles
-		if (this.fireParticles && this.fireParticlesAttributes) {
-			for (var i = 0; i < this.fireParticles.particleCount; i++) {
-				positionIndex = i * 3;
+					if (this.fireParticlesAttributes.life.array[i] === 0) {
+						// set life
+						this.fireParticlesAttributes.life.array[i] = this.fireParticles.life;
 
-				if (this.fireParticlesAttributes.life.array[i] === 0) {
-					// set life
-					this.fireParticlesAttributes.life.array[i] = this.fireParticles.life;
+						// set size
+						this.fireParticlesAttributes.size.array[i] = 1;
 
-					// set size
-					this.fireParticlesAttributes.size.array[i] = 1;
+						// opacity
+						this.fireParticlesAttributes.opacity.array[i] = 1;
 
-					// opacity
-					this.fireParticlesAttributes.opacity.array[i] = 1;
+						// set position
+						this.fireParticlesAttributes.position.array[positionIndex] = (Math.random() * this.fireParticles.spawnBoxSize) - (this.fireParticles.spawnBoxSize * 0.5);
+						this.fireParticlesAttributes.position.array[positionIndex + 1] = (Math.random() * this.fireParticles.spawnBoxSize) - (this.fireParticles.spawnBoxSize * 0.5);
+						this.fireParticlesAttributes.position.array[positionIndex + 2] = (Math.random() * this.fireParticles.spawnBoxSize) - (this.fireParticles.spawnBoxSize * 0.5);
 
-					// set position
-					this.fireParticlesAttributes.position.array[positionIndex] = (Math.random() * this.fireParticles.spawnBoxSize) - (this.fireParticles.spawnBoxSize * 0.5);
-					this.fireParticlesAttributes.position.array[positionIndex + 1] = (Math.random() * this.fireParticles.spawnBoxSize) - (this.fireParticles.spawnBoxSize * 0.5);
-					this.fireParticlesAttributes.position.array[positionIndex + 2] = (Math.random() * this.fireParticles.spawnBoxSize) - (this.fireParticles.spawnBoxSize * 0.5);
-
-					// set speed
-					this.fireParticlesAttributes.speed.array[positionIndex] = 0;
-					this.fireParticlesAttributes.speed.array[positionIndex + 1] = this.fireParticles.minSpeed + (Math.random() * (this.fireParticles.maxSpeed - this.fireParticles.minSpeed));
-					this.fireParticlesAttributes.speed.array[positionIndex + 2] = 0;
+						// set speed
+						this.fireParticlesAttributes.speed.array[positionIndex] = 0;
+						this.fireParticlesAttributes.speed.array[positionIndex + 1] = this.fireParticles.minSpeed + (Math.random() * (this.fireParticles.maxSpeed - this.fireParticles.minSpeed));
+						this.fireParticlesAttributes.speed.array[positionIndex + 2] = 0;
+					}
 				}
-			}
 
-			this.fireParticlesAttributes.speed.needsUpdate = true;
+				this.fireParticlesAttributes.speed.needsUpdate = true;
+			}
 		}
 	};
 

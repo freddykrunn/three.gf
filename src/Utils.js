@@ -32,17 +32,30 @@ GF.Utils = {
      * @returns a new THREE.Mesh
      */
     build3DObject(loader, params) {
+        if (params == null) {
+            return null;
+        }
+
         var object3D;
 
-        if (params != null && !(params.isObject3D && params.clone != null) && params.model != null && params.material != null) {
-            // process model
-            var geometry = params.model.isBufferGeometry ? params.model : this.buildGeometry(loader, params.model);
-            
-            // process material
-            var material = params.material.isMaterial ? params.material : this.buildMaterial(loader, params.material);
+        if (params.isObject3D && params.clone != null) {
+            object3D = params;
+        } else {
+            if (typeof(params.mesh) === "string") {
+                object3D = loader.get(params.mesh);
+            } else if (params.model != null && params.material != null) {
+                // process model
+                var geometry = params.model.isBufferGeometry ? params.model : this.buildGeometry(loader, params.model);
+                
+                // process material
+                var material = params.material.isMaterial ? params.material : this.buildMaterial(loader, params.material);
 
-            if (geometry != null && material != null) {
-                object3D = new THREE.Mesh(geometry, material);
+                if (geometry != null && material != null) {
+                    object3D = new THREE.Mesh(geometry, material);
+                }
+            } 
+            
+            if (object3D != null) {
                 object3D.castShadow =  params.shadows != null ? params.shadows.cast : false;
                 object3D.receiveShadow = params.shadows != null ? params.shadows.receive : false;
 
@@ -58,8 +71,6 @@ GF.Utils = {
                     object3D.scale.set(params.scale.x, params.scale.y, params.scale.z)
                 }
             }
-        } else {
-            object3D = params;
         }
 
         return object3D;

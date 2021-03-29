@@ -11,6 +11,19 @@ GF.StateMachine = class StateMachine {
         this.stateCallbacks = {};
         this.stateTransitionCallbacks = {};
         this.stateTransitionProhibitions = {};
+        this.executeLaterCallbacks = [];
+        this.currentStateTimer = 0;
+
+        this._tickDeltaCount = 0;
+    }
+
+    /**
+     * Execute a callback after some time passed
+     * @param {number} time time in milliseconds
+     * @param {function} callback the callback
+     */
+    executeAfter(time, callback) {
+        this.executeLaterCallbacks.push({callback: callback, time: time, currentTime: 0});
     }
 
     /**
@@ -70,6 +83,7 @@ GF.StateMachine = class StateMachine {
 
         if (!this.stateTransitionProhibitions[oldState + "-" + newState]) {
             this.state = newState;
+            this.currentStateTimer = 0;
 
             var transitionCallback = this.stateTransitionCallbacks[this.state];
             if (typeof(transitionCallback) === "function" && oldState !== this.state) {
@@ -94,16 +108,30 @@ GF.StateMachine = class StateMachine {
             this.stateCallbacks[this.state](delta);
         }
 
-        this.deltaCount += delta;
-        this.tickDeltaCount += delta;
-        if (this.tickDeltaCount >= 1000) {
-            this.tickDeltaCount = 0;
-            this.onTick();
+        if (this.executeLaterCallbacks.length > 0) {
+            for (var i = 0; i < this.executeLaterCallbacks.length; i++) {
+                this.executeLaterCallbacks[i].currentTime += delta;
+
+                if (this.executeLaterCallbacks[i].currentTime >= this.executeLaterCallbacks[i].time) {
+                    this.executeLaterCallbacks[i].callback();
+                    this.executeLaterCallbacks.splice(i, 1);
+                }
+            }
+        }
+
+        this.currentStateTimer += delta;
+
+        if (this.onTick) {
+            this._tickDeltaCount += delta;
+            if (this._tickDeltaCount >= 1000) {
+                this._tickDeltaCount = 0;
+                this.onTick();
+            }
         }
     }
 
     /**
-     * On Tick (each second of the game run)
+     * On Tick (each second of the game run) needs to be implemented
      */
-    onTick() {}
+    // onTick() {}
 }

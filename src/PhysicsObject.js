@@ -1,7 +1,6 @@
 
 // Constants
-const DELTA_MULTIPLIER = 0.01; // convert 'ms' to 's'
-const GRAVITY_ACCELERATION = -9.8 * DELTA_MULTIPLIER; // 'm/s'
+const GRAVITY_ACCELERATION = -9.8 * 0.1;
 const MAX_SPEED_HISTORY = 3;
 
 /**
@@ -28,6 +27,7 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
         this.maxHorizontalSpeed = params.maxSpeed != null ? params.maxSpeed.horizontal : null;
         this.maxVerticalSpeed = params.maxSpeed != null ? params.maxSpeed.vertical : null;
         this.affectedByGravity = params.gravity != null ? params.gravity : true;
+        this.rotationMatchesDirection = params.rotationMatchesDirection != null ? params.rotationMatchesDirection : false;
 
         this.resultForce = new THREE.Vector3(0,0,0);
 
@@ -114,6 +114,29 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
     }
 
     /**
+     * Rotate towards angle
+     */
+    rotateTowardsAngle(delta, angle) {
+        var quaternion = new THREE.Quaternion();
+        quaternion.setFromAxisAngle( new THREE.Vector3( 0, 1, 0 ), angle );
+        this.object3D.quaternion.slerp( quaternion, 0.01 * delta );
+    }
+
+    /**
+     * Rotate to angle
+     */
+    rotateToAngle(angle) {
+        this.object3D.quaternion.setFromAxisAngle( new THREE.Vector3( 0, 1, 0 ), angle );
+    }
+
+    /**
+     * Sync rotation with direction
+     */
+    syncRotationWithDirection() {
+        this.rotateToAngle(this.getDirectionAngle());
+    }
+
+    /**
      * Check if object is stationary on axis
      */
     isStationary(axis) {
@@ -192,6 +215,92 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
         if (this.collisionVolume != null) {
             this.collisionVolumeReference = this.collision.addVolume(this, this.collisionVolume).id;
         }
+
+        this.lag = 0;
+    }
+
+    _internalUpdate(delta) {
+        // move object with speed
+        this.object3D.position.x += this.speed.x * delta * DELTA_MULTIPLIER;
+        this.object3D.position.y += this.speed.y * delta * DELTA_MULTIPLIER;
+        this.object3D.position.z += this.speed.z * delta * DELTA_MULTIPLIER;
+
+        if (this.rotationMatchesDirection) {
+            this.rotateTowardsAngle(delta, this.getDirectionAngle());
+        }
+
+        // check ray collision
+        if (this.useRayCollision) {
+            this.floorCollision = this.collision.checkRayCollision(this, new THREE.Vector3(0, -1, 0), this.rayCollisionHeight);
+            if (this.floorCollision != null) {
+                if (this.floorCollision.point.y > this.object3D.position.y) {
+                    if (this.speed.y < 0) {
+                        this.speed.y = 0;
+                    }
+
+                    if (this.floorCollision.point.y - this.object3D.position.y < this.rayCollisionMinStepHeight) {
+                        this.object3D.position.y = this.floorCollision.point.y;
+                    } else {
+                        this.object3D.position.x = this.getLastPosition("x");
+                        this.object3D.position.y = this.getLastPosition("y");
+                        this.object3D.position.z = this.getLastPosition("z");
+                    }
+                }
+            }
+        }
+
+        // register history
+        this._registerPositionHistory();
+        this._registerSpeedHistory();
+
+        // super update logic
+        this.onUpdate(delta);
+
+        // calculate movement direction
+        if (this.speed.x != 0 || this.speed.z != 0) {
+            this.movementDirection.copy(this.speed);
+            this.movementDirection.normalize();
+        }
+
+        // calculate acceleration based on forces applied
+        this.resultForce.divideScalar(this.mass);
+        this.acceleration.set(0, this.affectedByGravity ? GRAVITY_ACCELERATION * this.game.speed : 0, 0); // set base gravity acceleration
+        this.acceleration.add(this.resultForce);
+
+        // acceleration
+        this.speed.add(this.acceleration);
+
+        // apply floor friction
+        if ((this.speed.x != 0 || this.speed.z != 0)
+        && this.getLastSpeed("y") === 0 && this.acceleration.x === 0 && this.acceleration.z === 0 && this.floorFriction > 0) {
+            // Ff = u * Fn ; Fn = m * g;
+            this.frictionVector.set(this.speed.x, 0, this.speed.z);
+            this.frictionVector.normalize();
+            this.frictionVector.multiplyScalar(GRAVITY_ACCELERATION * this.floorFriction);
+
+            // subtract friction
+            this.speed.x += this.frictionVector.x;
+            this.speed.z += this.frictionVector.z;
+
+            if (this.frictionVector.dot(this.speed) > 0) {
+                this.speed.set(0,0,0);
+            }
+        }
+
+        // clamp horizontal speed
+        if (this.maxHorizontalSpeed != null && this.maxHorizontalSpeed >= 0) {
+            this.speedY = this.speed.y;
+            this.speed.y = 0;
+            this.speed.clampLength(0, this.maxHorizontalSpeed);
+            this.speed.y = this.speedY;
+        }
+
+        // clamp vertical speed
+        if (this.maxVerticalSpeed != null && this.maxVerticalSpeed >= 0) {
+            this.speed.y = Math.min(this.speed.y, this.maxVerticalSpeed);
+        }
+
+        this.resultForce.set(0, 0, 0);
     }
 
     /**
@@ -202,84 +311,17 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
             super.onUpdate(delta);
 
             if (this.dynamic) {
-                // move object with speed
-                this.object3D.position.x += this.speed.x * delta * DELTA_MULTIPLIER;
-                this.object3D.position.y += this.speed.y * delta * DELTA_MULTIPLIER;
-                this.object3D.position.z += this.speed.z * delta * DELTA_MULTIPLIER;
-
-                // check ray collision
-                if (this.useRayCollision) {
-                    this.floorCollision = this.collision.checkRayCollision(this, new THREE.Vector3(0, -1, 0), this.rayCollisionHeight);
-                    if (this.floorCollision != null) {
-                        if (this.floorCollision.point.y > this.object3D.position.y) {
-                            if (this.speed.y < 0) {
-                                this.speed.y = 0;
-                            }
-        
-                            if (this.floorCollision.point.y - this.object3D.position.y < this.rayCollisionMinStepHeight) {
-                                this.object3D.position.y = this.floorCollision.point.y;
-                            } else {
-                                this.object3D.position.x = this.getLastPosition("x");
-                                this.object3D.position.y = this.getLastPosition("y");
-                                this.object3D.position.z = this.getLastPosition("z");
-                            }
-                        }
+                if (delta <= MS_PER_UPDATE) {
+                    this._internalUpdate(delta);
+                } else {
+                    this.lag += delta;
+                    // update physics with a fixed time stamp
+                    while (this.lag >= MS_PER_UPDATE) {  
+                        this._internalUpdate(MS_PER_UPDATE);
+                        // reduce the lag counter by the frame duration
+                        this.lag -= MS_PER_UPDATE;
                     }
                 }
-
-                // register history
-                this._registerPositionHistory();
-                this._registerSpeedHistory();
-
-                // super update logic
-                this.onUpdate(delta);
-
-                // calculate movement direction
-                if (this.speed.x != 0 || this.speed.z != 0) {
-                    this.movementDirection.copy(this.speed);
-                    this.movementDirection.normalize();
-                }
-
-                // calculate acceleration based on forces applied
-                this.resultForce.divideScalar(this.mass);
-                this.acceleration.set(0, this.affectedByGravity ? GRAVITY_ACCELERATION : 0, 0); // set base gravity acceleration
-                this.acceleration.add(this.resultForce);
-
-                // acceleration
-                this.speed.add(this.acceleration);
-
-                // apply floor friction
-                if ((this.speed.x != 0 || this.speed.z != 0)
-                && this.getLastSpeed("y") === 0 && this.acceleration.x === 0 && this.acceleration.z === 0 && this.floorFriction > 0) {
-                    // Ff = u * Fn ; Fn = m * g;
-                    this.frictionVector.set(this.speed.x, 0, this.speed.z);
-                    this.frictionVector.normalize();
-                    this.frictionVector.multiplyScalar(GRAVITY_ACCELERATION * this.floorFriction);
-
-                    // subtract friction
-                    this.speed.x += this.frictionVector.x;
-                    this.speed.z += this.frictionVector.z;
-
-                    if (this.frictionVector.dot(this.speed) > 0) {
-                        this.speed.set(0,0,0);
-                    }
-                }
-
-                // clamp horizontal speed
-                if (this.maxHorizontalSpeed != null && this.maxHorizontalSpeed >= 0) {
-                    this.speedY = this.speed.y;
-                    this.speed.y = 0;
-                    this.speed.clampLength(0, this.maxHorizontalSpeed);
-                    this.speed.y = this.speedY;
-                }
-
-                // clamp vertical speed
-                if (this.maxVerticalSpeed != null && this.maxVerticalSpeed >= 0) {
-                    this.speed.y = Math.min(this.speed.y, this.maxVerticalSpeed);
-                }
-
-                // clear forces
-                this.resultForce.set(0, 0, 0);
             } else {
                 this.onUpdate(delta);
             }
