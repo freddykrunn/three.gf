@@ -143,3 +143,8 @@ Then, to start a new project from a template, you can run the following gulp com
 
 Use the templates as an initial guidance to start your first game development using JGF.
 In the future, some example games will be provided in this repository too.
+
+## Important Notice
+
+This is a WIP (Work in progress), there is no official released version yet.
+If you want to use this framework "as is" right now, bare in mind that some breaking changes can and will occur until a stable version is released
