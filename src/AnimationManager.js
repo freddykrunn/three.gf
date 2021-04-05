@@ -1,28 +1,32 @@
 GF.AnimationType = {
     CONSTANT: 1,
     SPEED_UP: 2,
-    SLOW_DOWN: 3
+    SLOW_DOWN: 3,
+    PING_PONG: 4
 }
+
 /**
  * GameAnimationManager
  */
 GF.GameAnimationManager = class GameAnimationManager {
     constructor(eventManager, camera) {
-        this.eventManager = eventManager;
-        this.camera = camera;
-        this.oneShotAnimations = [];
+        this._eventManager = eventManager;
+        this._camera = camera;
+        this._oneShotAnimations = [];
     }
 
     /**
      * Play a single-shot animation to animate a transition of a numeric property of an object
      * @param {any} object the object to change the property
-     * @param {string} property the property name
+     * @param {string | array | function} property the property name | the properties names array | custom function to update value based on the progress
      * @param {number} target the target value for the property
      * @param {GF.AnimationType} type the type of animation
      * @param {number} duration the duration in milliseconds
+     * @param {function} onFinish on finish callback
      */
     play(object, property, target, type, duration, onFinish) {
         var newAnimation = {
+            animationType: "numeric",
             object: object,
             property: property,
             target: target,
@@ -47,37 +51,43 @@ GF.GameAnimationManager = class GameAnimationManager {
         }
 
         if (newAnimation.diff != 0) {
-            if (this.oneShotAnimations.length > 0) {
-                this.oneShotAnimations[this.oneShotAnimations.length - 1].next = newAnimation;
+            if (this._oneShotAnimations.length > 0) {
+                this._oneShotAnimations[this._oneShotAnimations.length - 1].next = newAnimation;
             }
-            this.oneShotAnimations.push(newAnimation);
+            this._oneShotAnimations.push(newAnimation);
         }
     }
 
     /**
-     * Creates a new value animator that makes smooth transitions
-     * to numeric properties of objects
-     * 
-     * EX:
-     * Params = [
-     *  duration: 3000,
-     *  delay: 1000,
-     *  onUpdate: function() {}
-     *  onFinish: function() {}
-     * ]
-     *
-     * @param {number} duration duration of the animation played by this animator
-     * @param {number} delay delay of the start of the animation played by this animator
-     * @param {function} onUpdate every time the value is updated
-     * @param {function} onFinish when animation finishes
-     * @param {function} onCalculate every time the value is ot be calculated (overrides default calculation)
+     * Play a single-shot animation with a custom update function
+     * @param {GF.AnimationType} type the type of animation
+     * @param {number} duration the duration in milliseconds
+     * @param {function} onUpdate custom callback to update value based on the progress
+     * @param {function} onFinish on finish callback
      */
-    newValueAnimator(duration, delay, onUpdate, onFinish, onCalculate) {
-        return new GF.GameAnimation(this.eventManager, duration, delay, onUpdate, onFinish, onCalculate);
+    playCustom(type, duration, onUpdate, onFinish) {
+        var newAnimation = {
+            animationType: "custom",
+            object: null,
+            property: null,
+            target: null,
+            type: type.type != null ? type.type : type,
+            time: duration,
+            currentTime: 0,
+            speed: 1,
+            power: type.power != null ? type.power * 2 : 2,
+            onUpdate: onUpdate != null ? onUpdate : () => {},
+            onFinish: onFinish
+        }
+
+        if (this._oneShotAnimations.length > 0) {
+            this._oneShotAnimations[this._oneShotAnimations.length - 1].next = newAnimation;
+        }
+        this._oneShotAnimations.push(newAnimation);
     }
 
     /**
-     * Creates a new animation for the camera position and direction
+     * Creates a new animation for the camera position and direction that can be played any time
      * @param {number} delay the delay to start the animation when played
      * @param {Keyframe[]} keyframes the keyframes of every event (every position and target of camera in each time point)
      * @param {function} onKeyFrame when a keyframe changes
@@ -111,17 +121,30 @@ GF.GameAnimationManager = class GameAnimationManager {
      * be abrupt
      */
     newCameraAnimation(delay, track, onKeyFrame, onUpdate, onFinish, destroyOnFinish) {
-        return new GF.CameraAnimation(this.eventManager, this.camera, delay, track, onKeyFrame, onUpdate, onFinish, destroyOnFinish);
+        return new GF.CameraAnimation(this._eventManager, this._camera, delay, track, onKeyFrame, onUpdate, onFinish, destroyOnFinish);
     }
 
     //#region Internal
+
+    /**
+     * Update property
+     */
+    _updateProperty(a, progress) {
+        if (a.property instanceof Array) {
+            for (var k = 0; k < a.property.length; k++) {
+                a.object[a.property[k]] = a.initialValue[k] + (progress * a.diff[k]);
+            }
+        } else {
+            a.object[a.property] = a.initialValue + (progress * a.diff);
+        }
+    }
 
     /**
      * Update logic
      * @param {number} delta 
      */
     _update(delta) {
-        var a = this.oneShotAnimations[0], progress;
+        var a = this._oneShotAnimations[0], progress;
         var i = 0, k = 0;
         while(a != null) {
             if (!a.finished) {
@@ -134,27 +157,38 @@ GF.GameAnimationManager = class GameAnimationManager {
                     case GF.AnimationType.SLOW_DOWN:
                         progress = 1 - Math.pow((progress - 1), a.power); 
                         break;
+                    case GF.AnimationType.PING_PONG:
+                        progress = Math.sin(Math.PI * progress); 
+                        break;
                 }
 
-                if (a.property instanceof Array) {
-                    for (k = 0; k < a.property.length; k++) {
-                        a.object[a.property[k]] = a.initialValue[k] + (progress * a.diff[k]);
-                    }
+                if (a.animationType === "custom") {
+                    a.onUpdate(progress);
                 } else {
-                    a.object[a.property] = a.initialValue + (progress * a.diff);
+                    this._updateProperty(a, progress);
                 }
 
                 a.currentTime += delta;
 
                 if (a.currentTime >= a.time) {
-                    if (a.property instanceof Array) {
-                        for (k = 0; k < a.property.length; k++) {
-                            a.object[a.property[k]] = a.target[k];
-                        }
-                    } else {
-                        a.object[a.property] = a.target;
+                    switch(a.type) {
+                        case GF.AnimationType.SPEED_UP:
+                            progress = 1;
+                            break;
+                        case GF.AnimationType.SLOW_DOWN:
+                            progress = 1; 
+                            break;
+                        case GF.AnimationType.PING_PONG:
+                            progress = 0; 
+                            break;
                     }
-                    a.object[a.property] = a.target;
+                    
+                    if (a.animationType === "custom") {
+                        a.onUpdate(progress);
+                    } else {
+                        this._updateProperty(a, progress);
+                    }
+    
                     a.currentTime = a.time;
                     a.finished = true;
 
@@ -163,9 +197,9 @@ GF.GameAnimationManager = class GameAnimationManager {
                     }
 
                     // delete animation
-                    this.oneShotAnimations.splice(i, 1);
+                    this._oneShotAnimations.splice(i, 1);
                     if (i > 0) {
-                        this.oneShotAnimations[i - 1].next = this.oneShotAnimations[i];
+                        this._oneShotAnimations[i - 1].next = this._oneShotAnimations[i];
                     }
                     
                 }
@@ -194,7 +228,7 @@ GF.CameraAnimation = class CameraAnimation {
      */
     constructor(eventManager, camera, delay, track, onKeyFrame, onUpdate, onFinish, destroyOnFinish) {
         this.track = new Array(...track);
-        this.camera = camera;
+        this._camera = camera;
         this.onKeyFrame = onKeyFrame != null ? onKeyFrame : () => {};
         this.onUpdate = onUpdate != null ? onUpdate : () => {};
         this.onFinish = onFinish != null ? onFinish : () => {};
@@ -227,9 +261,9 @@ GF.CameraAnimation = class CameraAnimation {
      * Save initial camera position
      */
     _saveInitialCameraPosition() {
-        this.initialCameraPosition = new THREE.Vector3(this.camera.position.x, this.camera.position.y, this.camera.position.z);
+        this.initialCameraPosition = new THREE.Vector3(this._camera.position.x, this._camera.position.y, this._camera.position.z);
         var lookAtVector = new THREE.Vector3(0,0,-1);
-        lookAtVector.applyQuaternion(this.camera.quaternion);
+        lookAtVector.applyQuaternion(this._camera.quaternion);
         this.initialCameraTarget = lookAtVector.add(this.initialCameraPosition);
     }
 
@@ -247,9 +281,9 @@ GF.CameraAnimation = class CameraAnimation {
         }
 
         if (track.position) {
-            this.camera.position.x = this.initialCameraPosition.x + (percentageToUpdate * (track.position.x - this.initialCameraPosition.x));
-            this.camera.position.y = this.initialCameraPosition.y + (percentageToUpdate * (track.position.y - this.initialCameraPosition.y)); 
-            this.camera.position.z = this.initialCameraPosition.z + (percentageToUpdate * (track.position.z - this.initialCameraPosition.z)); 
+            this._camera.position.x = this.initialCameraPosition.x + (percentageToUpdate * (track.position.x - this.initialCameraPosition.x));
+            this._camera.position.y = this.initialCameraPosition.y + (percentageToUpdate * (track.position.y - this.initialCameraPosition.y)); 
+            this._camera.position.z = this.initialCameraPosition.z + (percentageToUpdate * (track.position.z - this.initialCameraPosition.z)); 
         }
 
         if (track.target) {
@@ -257,7 +291,7 @@ GF.CameraAnimation = class CameraAnimation {
             target.x = this.initialCameraTarget.x + (percentageToUpdate * (track.target.x - this.initialCameraTarget.x));
             target.y = this.initialCameraTarget.y + (percentageToUpdate * (track.target.y - this.initialCameraTarget.y)); 
             target.z = this.initialCameraTarget.z + (percentageToUpdate * (track.target.z - this.initialCameraTarget.z)); 
-            this.camera.lookAt(target);
+            this._camera.lookAt(target);
         }
 
         this.onUpdate(index, deltaTime, elapsedTime);
@@ -291,90 +325,6 @@ GF.CameraAnimation = class CameraAnimation {
      * Destroy this animator
      */
     destroy() {
-        this.event.destroy();
-    }
-}
-
-/**
- * GameAnimation
- */
-GF.GameAnimation = class GameAnimation {
-    /**
-     * Constructor
-     * @param {GF.EventManager} eventManager the Event Manager
-     * @param {number} duration duration of the animation played by this animator
-     * @param {number} delay delay of the start of the animation played by this animator
-     * @param {function} updateCallback every time the value is updated
-     * @param {function} finishCallback when animation finishes
-     */
-    constructor(eventManager, duration, delay, updateCallback, finishCallback, calculationCallback) {
-        this.eventManager = eventManager;
-
-        duration = duration != null ? duration : 1000;
-        delay = delay != null ? delay : 0;
-
-        this.event = this.eventManager.newEvent({
-            delay: delay,
-            duration: duration,
-            onUpdate: (delta) => {
-                this.elapsed += delta; 
-                if (duration - this.elapsed <= 20) {
-                    this.percentage = 1;
-                } else {
-                    this.percentage = this.elapsed / duration;
-                }
-
-                if (typeof(calculationCallback) === "function") {
-                    this.object[this.property] = calculationCallback(this.initialValue, this.percentage, this.difference)
-                } else {
-                    this.object[this.property] = this.initialValue + (this.percentage * this.difference);
-                }
-
-                if (typeof(updateCallback) === "function") {
-                    updateCallback(Math.round(this.percentage * 100));
-                }
-            },
-            onFire: () => {
-                if (typeof(finishCallback) === "function") {
-                    finishCallback();
-                }
-                this.playing = false;
-            }
-        });
-
-        this.playing = false;
-    }
-
-    /**
-     * Play the animation to smoothly make a value transition of a single property of an object
-     * @param {Object} object the object
-     * @param {string} property the property
-     * @param {number} targetValue the target value for the property to animate to
-     */
-    play(object, property, targetValue) {
-        if (this.playing === false && object != null && property != null) {
-            this.object = object;
-            this.property = property;
-            this.elapsed = 0;
-            this.percentage = 0;
-            this.initialValue = this.object[this.property];
-
-            if (targetValue != null) {
-                this.targetValue = targetValue;
-                this.difference = this.targetValue - this.initialValue;
-            }
-
-            this.event.fire();
-
-            this.playing = true;
-        }
-    }
-
-    /**
-     * Destroy this animator
-     */
-    destroy() {
-        this.playing = false;
         this.event.destroy();
     }
 }

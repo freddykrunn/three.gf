@@ -9,26 +9,60 @@ GF.LOOP_INFINITE = -1,
  */
 GF.GameEventManager = class GameEventManager {
     constructor() {
-        this.events = [];
+        this._events = [];
     }
+
+    //#region internal
+
+    /**
+     * init
+     */
+     _init() {
+        this._events = [];
+    }
+
+    /**
+     * update
+     * @param {number} delta 
+     */
+    _update(delta) {
+        for(var i = 0, len = this._events.length; i < len; i++) {
+            this._events[i]._update(delta);
+        }
+
+    }
+
+    /**
+     * destroy
+     */
+    _destroy() {
+        for(var i = 0, len = this._events.length; i < len; i++) {
+            this._events[i]._destroy();
+        }
+        this._events.length = 0;
+    }
+
+    //#endregion
+
+    //#region API
 
     /**
      * New Event
      *
      * GameEventStep = {
-     *  delay: [miliseconds],
-     *  duration: [miliseconds],
-     *  onUpdate: [function],
-     *  onFire: [function],
+     *  delay: number, (milliseconds)
+     *  duration: number, (milliseconds)
+     *  onUpdate: function,
+     *  onFire: function,
      * }
      * 
-     * @param {GameEventStep} params 
-     * @param {boolean} destroyOnFinish
-     * @return event instance
+     * @param {GameEventStep} params new event params
+     * @param {boolean} destroyOnFinish if event will be destroyed when finished (defaults to 'false')
+     * @return the new event instance
      */
-    newEvent(params, destroyOnFinish) {
+    newEvent(params, destroyOnFinish = false) {
         var event = new GF.GameEvent(this, [params], destroyOnFinish);
-        this.events.push(event);
+        this._events.push(event);
         return event;
     }
 
@@ -37,25 +71,25 @@ GF.GameEventManager = class GameEventManager {
      * An array of events executed sequentially
      * 
      * GameEventStep = {
-     *  delay: [miliseconds],
-     *  duration: [miliseconds],
-     *  onUpdate: [function],
-     *  onFire: [function],
+     *  delay: number, (milliseconds)
+     *  duration: number, (milliseconds)
+     *  onUpdate: function,
+     *  onFire: function,
      * }
      * 
-     * @param {GameEventStep[]} eventsParams 
-     * @param {boolean} destroyOnFinish
-     * @return event instance
+     * @param {GameEventStep[]} eventsParams new event params
+     * @param {boolean} destroyOnFinish if event will be destroyed when finished (defaults to 'false')
+     * @return the new event instance
      */
     newEventSequence(eventsParams, destroyOnFinish) {
         var event = new GF.GameEvent(this, eventsParams, destroyOnFinish);
-        this.events.push(event);
+        this._events.push(event);
         return event;
     }
 
     /**
      * New event of type track.
-     * A track of events executed and repeated acordingly to a track
+     * A track of events executed and repeated orchestrated by event tracks
      * 
      * EventTrack = {
      *  events: [
@@ -69,9 +103,9 @@ GF.GameEventManager = class GameEventManager {
      *  ]
      * }
      * 
-     * @param {EventTrack} eventTrackParams 
-     * @param {boolean} destroyOnFinish
-     * @return event instance
+     * @param {EventTrack} eventTrackParams new event params
+     * @param {boolean} destroyOnFinish if event will be destroyed when finished (defaults to 'false')
+     * @return the new event instance
      */
     newEventTrack(eventTrackParams, destroyOnFinish) {
         var stepsParams = [];
@@ -88,7 +122,7 @@ GF.GameEventManager = class GameEventManager {
             }
 
             event = new GF.GameEvent(this, stepsParams, destroyOnFinish);
-            this.events.push(event);
+            this._events.push(event);
         }
 
         return event;
@@ -99,61 +133,47 @@ GF.GameEventManager = class GameEventManager {
      * @param {GameEvent} event 
      */
     removeEvent(event) {
-        var index = this.events.indexOf(event);
+        var index = this._events.indexOf(event);
         if (index >= 0) {
-            var event = this.events.splice(index, 1);
+            var event = this._events.splice(index, 1);
         }
-    }
-
-    //#region system
-
-    /**
-     * init
-     */
-    _init() {
-        this.events = [];
-    }
-
-    /**
-     * update
-     * @param {number} delta 
-     */
-    _update(delta) {
-        for(var i = 0; i < this.events.length; i++) {
-            this.events[i].update(delta);
-        }
-
-    }
-
-    /**
-     * destroy
-     */
-    _destroy() {
-        for(var i = 0; i < this.events.length; i++) {
-            this.events[i].destroy();
-        }
-        this.events = [];
     }
 
     //#endregion
 },
 
 /**
- * Event
+ * Game Event
  */
 GF.GameEvent = class GameEvent {
     constructor(eventManager, stepParameters, destroyOnFinish) {
-        this.steps = [];
+        this._steps = [];
         for (const stepParameter of stepParameters) {
             const eventStep = new GF.GameEventStep(stepParameter.delay, stepParameter.onFire, stepParameter.duration, stepParameter.onUpdate)
-            this.steps.push(eventStep);
+            this._steps.push(eventStep);
         }
-        this.eventManager = eventManager;
+        this._eventManager = eventManager;
 
-        this.destroyOnFinish = destroyOnFinish;
-        this.alive = true;
-        this.fired = true;
-        this.step = 0;
+        this._destroyOnFinish = destroyOnFinish;
+        this._alive = true;
+        this._fired = true;
+        this._step = 0;
+    }
+
+    //#region API
+
+    /**
+     * Checks if event was fired
+     */
+    isFired() {
+        return this._fired;
+    }
+
+    /**
+     * Checks if event is alive
+     */
+     isAlive() {
+        return this._alive;
     }
 
     /**
@@ -163,14 +183,14 @@ GF.GameEvent = class GameEvent {
      * Ex: fire(5) -> fire event repeating 5 times in a row
      * Ex: fire(LOOP_INFINITE) -> fire event repeating forever
      * 
-     * @param {number} loop 
+     * @param {number} loop the number of executions in loop
      */
     fire(loop) {
-        if (this.fired === true && this.alive === true) {
+        if (this._fired === true && this._alive === true) {
             this.loop = loop == null ? 0 : loop;
-            this.step = 0;
-            this.fired = false;
-            for(const step of this.steps) {
+            this._step = 0;
+            this._fired = false;
+            for(const step of this._steps) {
                 step.init();
             }
         }
@@ -183,37 +203,39 @@ GF.GameEvent = class GameEvent {
         this.loop = 0;
     }
 
+    //#endregion
+
     //#region system
 
     /**
      * destroy
      */
-    destroy() {
-        this.alive = false;
-        this.eventManager.removeEvent(this);
+    _destroy() {
+        this._alive = false;
+        this._eventManager.removeEvent(this);
     }
 
     /**
      * update
      * @param {number} delta 
      */
-    update(delta) {
-        if (!this.fired && this.alive === true) {
-            if (this.steps[this.step].update(delta) === true) {
-                this.step++;
-                if (this.step >= this.steps.length) {
+    _update(delta) {
+        if (!this._fired && this._alive === true) {
+            if (this._steps[this._step].update(delta) === true) {
+                this._step++;
+                if (this._step >= this._steps.length) {
                     // reset
-                    this.step = 0;
-                    for(const step of this.steps) {
+                    this._step = 0;
+                    for(const step of this._steps) {
                         step.init();
                     }
                     // loop
                     if (this.loop > 0) {
                         this.loop--;
                     } else if (this.loop === 0) {
-                        this.fired = true;
+                        this._fired = true;
 
-                        if (this.destroyOnFinish) {
+                        if (this._destroyOnFinish) {
                             this.destroy();
                         }
                     }
@@ -246,7 +268,7 @@ GF.GameEventStep = class GameEventStep {
     init() {
         this.elapsedDelay = 0;
         this.elapsedDuration = 0;
-        this.fired = false;
+        this._fired = false;
     }
 
     /**
@@ -254,7 +276,7 @@ GF.GameEventStep = class GameEventStep {
      * @param {number} delta 
      */
     update(delta) {
-        if (!this.fired) {
+        if (!this._fired) {
             if (this.elapsedDelay === this.delay) {
                 if (this.elapsedDuration < this.duration) {
                     this.elapsedDuration+= delta;
@@ -265,7 +287,7 @@ GF.GameEventStep = class GameEventStep {
                     }              
                 }else{
                     this.onFire();
-                    this.fired = true;
+                    this._fired = true;
                 }
             } else {
                 this.elapsedDelay+= delta;
@@ -274,7 +296,7 @@ GF.GameEventStep = class GameEventStep {
                 }
             }
         }
-        return this.fired;
+        return this._fired;
     }
 
     //#endregion

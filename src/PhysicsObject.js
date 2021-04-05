@@ -1,12 +1,18 @@
 
 // Constants
-const GRAVITY_ACCELERATION = -9.8 * 0.1;
+const GRAVITY_ACCELERATION = -0.98;
 const MAX_SPEED_HISTORY = 3;
 
 /**
  * PhysicsObject
  */
 GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
+    /**
+     * PhysicsObject
+     * @param {any} object3D object 3D pre-build params
+     * @param {GF.CollisionVolume} collisionVolume collision volume
+     * @param {any} params physics params
+     */
     constructor(object3D, collisionVolume, params) {
         super(object3D);
 
@@ -14,13 +20,16 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
             params = {};
         }
 
+        // public access properties
+        this.speed = new THREE.Vector3(0,0,0);
+        this.movementDirection = new THREE.Vector3(0,0,0);
+
         this.useRayCollision = params.useRayCollision;
         this.rayCollisionHeight = params.rayCollisionHeight != null ? params.rayCollisionHeight : 1;
         this.rayCollisionMinStepHeight = params.rayCollisionMinStepHeight != null ? params.rayCollisionMinStepHeight : 0.1;
 
         this.collisionVolume = collisionVolume;
         this.dynamic = params.dynamic;
-        this.solid = params.solid;
         this.mass = params.mass != null ? params.mass : 1;
         this.restitution = params.restitution != null ? params.restitution : 0.01;
         this.floorFriction = params.floorFriction;
@@ -29,25 +38,31 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
         this.affectedByGravity = params.gravity != null ? params.gravity : true;
         this.rotationMatchesDirection = params.rotationMatchesDirection != null ? params.rotationMatchesDirection : false;
 
-        this.resultForce = new THREE.Vector3(0,0,0);
+        // internal properties
+        this._affectedCollisionGroups = params.collisionGroups != null ? params.collisionGroups : [];
+        if (params.solid) {
+            this._affectedCollisionGroups.splice(0, 0, "solid");
+        }
 
-        this.speed = new THREE.Vector3(0,0,0);
-        this.acceleration = new THREE.Vector3(0,0,0);
-        this.movementDirection = new THREE.Vector3(0,0,0);
-        this.frictionVector = new THREE.Vector3(0,0,0);
+        this._resultForce = new THREE.Vector3(0,0,0);
 
-        this.speedHistory = {
+        this._acceleration = new THREE.Vector3(0,0,0);
+        this._frictionVector = new THREE.Vector3(0,0,0);
+
+        this._speedHistory = {
             "x": [],
             "y": [],
             "z": []
         };
 
-        this.positionHistory = {
+        this._positionHistory = {
             "x": [],
             "y": [],
             "z": []
         };
     }
+
+    //#region Internal
 
     /**
      * Update physics on collision
@@ -76,10 +91,10 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
      * @param {string} axis 
      */
     _addSpeedHistoryOnAxis(axis) {
-        this.speedHistory[axis].push(this.speed[axis]);
+        this._speedHistory[axis].push(this.speed[axis]);
 
-        if (this.speedHistory[axis].length > MAX_SPEED_HISTORY) {
-            this.speedHistory[axis].splice(0, 1);
+        if (this._speedHistory[axis].length > MAX_SPEED_HISTORY) {
+            this._speedHistory[axis].splice(0, 1);
         }
     }
 
@@ -88,10 +103,10 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
      * @param {string} axis 
      */
     _addPositionHistoryOnAxis(axis) {
-        this.positionHistory[axis].push(this.object3D.position[axis]);
+        this._positionHistory[axis].push(this.object3D.position[axis]);
 
-        if (this.positionHistory[axis].length > MAX_SPEED_HISTORY) {
-            this.positionHistory[axis].splice(0, 1);
+        if (this._positionHistory[axis].length > MAX_SPEED_HISTORY) {
+            this._positionHistory[axis].splice(0, 1);
         }
     }
 
@@ -114,111 +129,9 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
     }
 
     /**
-     * Rotate towards angle
+     * Internal update function
+     * @param {number} delta 
      */
-    rotateTowardsAngle(delta, angle) {
-        var quaternion = new THREE.Quaternion();
-        quaternion.setFromAxisAngle( new THREE.Vector3( 0, 1, 0 ), angle );
-        this.object3D.quaternion.slerp( quaternion, 0.01 * delta );
-    }
-
-    /**
-     * Rotate to angle
-     */
-    rotateToAngle(angle) {
-        this.object3D.quaternion.setFromAxisAngle( new THREE.Vector3( 0, 1, 0 ), angle );
-    }
-
-    /**
-     * Sync rotation with direction
-     */
-    syncRotationWithDirection() {
-        this.rotateToAngle(this.getDirectionAngle());
-    }
-
-    /**
-     * Check if object is stationary on axis
-     */
-    isStationary(axis) {
-        for (var i = 0; i < this.speedHistory[axis].length; i++) {
-            if (this.speedHistory[axis][i] != 0) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Get speed tendency on axis (positive or negative)
-     */
-    getSpeedTendency(axis) {
-        var tendency = 0;
-        for (var i = 0; i < this.speedHistory[axis].length; i++) {
-            tendency += this.speedHistory[axis][i];
-        }
-        return Math.abs(tendency / this.speedHistory[axis].length);
-    }
-
-    /**
-     * Get last speed on axis
-     */
-    getLastSpeed(axis) {
-        return this.speedHistory[axis][this.speedHistory[axis].length - 1];
-    }
-
-    /**
-     * Get last position on axis
-     */
-    getLastPosition(axis) {
-        return this.positionHistory[axis][this.positionHistory[axis].length - 1];
-    }
-
-    /**
-     * Get position history on axis
-     */
-    getPositionHistory(axis) {
-        return this.positionHistory[axis];
-    }
-
-    /**
-     * Get direction angle
-     */
-    getDirectionAngle() {
-        const angle = Math.atan2(-this.movementDirection.z, this.movementDirection.x);
-        return angle < 0 ? (Math.PI * 2) + angle : angle;
-    }
-
-    /**
-     * Apply force
-     */
-    applyForce(force) {
-        this.resultForce.x += force.x * DELTA_MULTIPLIER;
-        this.resultForce.y += force.y * DELTA_MULTIPLIER;
-        this.resultForce.z += force.z * DELTA_MULTIPLIER;
-    }
-
-    /**
-     * Init
-     */
-    onInit(){
-        this.speed = new THREE.Vector3(0,0,0);
-        this.acceleration = new THREE.Vector3(0,0,0);
-        this.frictionVector = new THREE.Vector3(0,0,0);
-        super.onInit();
-        this._registerSpeedHistory();
-        this._registerPositionHistory();
-
-        if (this.collisionVolume == null) {
-            this.collisionVolume = GF.Utils.buildCollisionVolumeFrom3DObject(this.object3D);
-        }
-        
-        if (this.collisionVolume != null) {
-            this.collisionVolumeReference = this.collision.addVolume(this, this.collisionVolume).id;
-        }
-
-        this.lag = 0;
-    }
-
     _internalUpdate(delta) {
         // move object with speed
         this.object3D.position.x += this.speed.x * delta * DELTA_MULTIPLIER;
@@ -263,26 +176,26 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
         }
 
         // calculate acceleration based on forces applied
-        this.resultForce.divideScalar(this.mass);
-        this.acceleration.set(0, this.affectedByGravity ? GRAVITY_ACCELERATION * this.game.speed : 0, 0); // set base gravity acceleration
-        this.acceleration.add(this.resultForce);
+        this._resultForce.divideScalar(this.mass);
+        this._acceleration.set(0, this.affectedByGravity ? GRAVITY_ACCELERATION * this.game._speed : 0, 0); // set base gravity acceleration
+        this._acceleration.add(this._resultForce);
 
         // acceleration
-        this.speed.add(this.acceleration);
+        this.speed.add(this._acceleration);
 
         // apply floor friction
         if ((this.speed.x != 0 || this.speed.z != 0)
-        && this.getLastSpeed("y") === 0 && this.acceleration.x === 0 && this.acceleration.z === 0 && this.floorFriction > 0) {
+        && this.getLastSpeed("y") === 0 && this._acceleration.x === 0 && this._acceleration.z === 0 && this.floorFriction > 0) {
             // Ff = u * Fn ; Fn = m * g;
-            this.frictionVector.set(this.speed.x, 0, this.speed.z);
-            this.frictionVector.normalize();
-            this.frictionVector.multiplyScalar(GRAVITY_ACCELERATION * this.floorFriction);
+            this._frictionVector.set(this.speed.x, 0, this.speed.z);
+            this._frictionVector.normalize();
+            this._frictionVector.multiplyScalar(GRAVITY_ACCELERATION * this.floorFriction);
 
             // subtract friction
-            this.speed.x += this.frictionVector.x;
-            this.speed.z += this.frictionVector.z;
+            this.speed.x += this._frictionVector.x;
+            this.speed.z += this._frictionVector.z;
 
-            if (this.frictionVector.dot(this.speed) > 0) {
+            if (this._frictionVector.dot(this.speed) > 0) {
                 this.speed.set(0,0,0);
             }
         }
@@ -300,13 +213,13 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
             this.speed.y = Math.min(this.speed.y, this.maxVerticalSpeed);
         }
 
-        this.resultForce.set(0, 0, 0);
+        this._resultForce.set(0, 0, 0);
     }
 
     /**
      * Update this object
      */
-     _update(delta) {
+    _update(delta) {
         if (this.alive === true) {
             super.onUpdate(delta);
 
@@ -328,8 +241,129 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
         }
     }
 
+    //#endregion
+
+    //#region API
+
     /**
-     * On update
+     * Rotate towards angle
+     * @param {number} delta time interval passed
+     * @param {number} angle the target angle in radians
+     */
+    rotateTowardsAngle(delta, angle) {
+        var quaternion = new THREE.Quaternion();
+        quaternion.setFromAxisAngle( new THREE.Vector3( 0, 1, 0 ), angle );
+        this.object3D.quaternion.slerp( quaternion, 0.01 * delta );
+    }
+
+    /**
+     * Rotate to angle
+     * @param {number} angle the target angle in radians
+     */
+    rotateToAngle(angle) {
+        this.object3D.quaternion.setFromAxisAngle( new THREE.Vector3( 0, 1, 0 ), angle );
+    }
+
+    /**
+     * Sync rotation with direction
+     */
+    syncRotationWithDirection() {
+        this.rotateToAngle(this.getDirectionAngle());
+    }
+
+    /**
+     * Check if object is stationary on axis
+     * @param {string} axis the axis name ("x", "y" or "z")
+     */
+    isStationary(axis) {
+        for (var i = 0; i < this._speedHistory[axis].length; i++) {
+            if (this._speedHistory[axis][i] != 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Get speed tendency on axis (positive or negative)
+     * @param {string} axis the axis name ("x", "y" or "z")
+     */
+    getSpeedTendency(axis) {
+        var tendency = 0;
+        for (var i = 0; i < this._speedHistory[axis].length; i++) {
+            tendency += this._speedHistory[axis][i];
+        }
+        return Math.abs(tendency / this._speedHistory[axis].length);
+    }
+
+    /**
+     * Get last speed on axis
+     * @param {string} axis the axis name ("x", "y" or "z")
+     */
+    getLastSpeed(axis) {
+        return this._speedHistory[axis][this._speedHistory[axis].length - 1];
+    }
+
+    /**
+     * Get last position on axis
+     * @param {string} axis the axis name ("x", "y" or "z")
+     */
+    getLastPosition(axis) {
+        return this._positionHistory[axis][this._positionHistory[axis].length - 1];
+    }
+
+    /**
+     * Get position history on axis
+     * @param {string} axis the axis name ("x", "y" or "z")
+     */
+    getPositionHistory(axis) {
+        return this._positionHistory[axis];
+    }
+
+    /**
+     * Get direction angle
+     */
+    getDirectionAngle() {
+        const angle = Math.atan2(-this.movementDirection.z, this.movementDirection.x);
+        return angle < 0 ? (Math.PI * 2) + angle : angle;
+    }
+
+    /**
+     * Apply force
+     * @param {THREE.vector3} force the force to apply
+     */
+    applyForce(force) {
+        this._resultForce.x += force.x * DELTA_MULTIPLIER;
+        this._resultForce.y += force.y * DELTA_MULTIPLIER;
+        this._resultForce.z += force.z * DELTA_MULTIPLIER;
+    }
+
+    //#region life cycle
+
+    /**
+     * Init
+     */
+    onInit(){
+        this.speed = new THREE.Vector3(0,0,0);
+        this._acceleration = new THREE.Vector3(0,0,0);
+        this._frictionVector = new THREE.Vector3(0,0,0);
+        super.onInit();
+        this._registerSpeedHistory();
+        this._registerPositionHistory();
+
+        if (this.collisionVolume == null) {
+            this.collisionVolume = GF.Utils.buildCollisionVolumeFrom3DObject(this.object3D);
+        }
+        
+        if (this.collisionVolume != null) {
+            this.collisionVolumeReference = this.collision.addVolume(this, this.collisionVolume, this.object3D.position, true, this._affectedCollisionGroups).id;
+        }
+
+        this.lag = 0;
+    }
+
+    /**
+     * On update (to override if necessary)
      * @param {number} delta 
      */
     onUpdate(delta){

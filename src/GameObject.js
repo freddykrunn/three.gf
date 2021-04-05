@@ -1,13 +1,3 @@
-
-/**
- * If this object is of a type
- * @param {GameObject} object 
- * @param {string} type 
- */
-var isOfType = function(object, type) {
-    return object instanceof type;
-}
-
 /**
  * GameObject (Base Class for every object in the game)
  * Can be extended
@@ -24,17 +14,20 @@ GF.GameObject = class GameObject extends GF.StateMachine {
         super();
 
         this.alive = false;
+        this.type = this.constructor.name;
+        this.position = new THREE.Vector3(0,0,0);
+        this.rotation = new THREE.Vector3(0,0,0);
+        this.scale = new THREE.Vector3(0,0,0);
 
         this._affectsRayCollision = affectsRayCollision;
         this._noUpdate = noUpdate;
 
-        this.keySubscriptions = [];
-        this.mouseSubscriptions = [];
+        this._keySubscriptions = [];
+        this._mouseSubscriptions = [];
+        this._onInitSubscriptions = [];
 
         this.intersectedByMouse = false;
-        this.onInitSubscriptions = [];
-
-        this.object3DParams = object3DParams;
+        this._object3DParams = object3DParams;
     }
 
     //#region internal
@@ -55,11 +48,11 @@ GF.GameObject = class GameObject extends GF.StateMachine {
             this.alive = true;
             this._tickDeltaCount = 0;
 
-            if (this.object3DParams) {
-                this.object3D = GF.Utils.build3DObject(this.loader, this.object3DParams);
+            if (this._object3DParams) {
+                this.object3D = GF.Utils.build3DObject(this.loader, this._object3DParams);
 
                 // setup animated model
-                if (this.object3DParams.skeletalAnimations != null && this.object3D != null) {
+                if (this._object3DParams.skeletalAnimations != null && this.object3D != null) {
                     const skinnedMesh = this.object3D.type === "SkinnedMesh" ? this.object3D : this.object3D.children.find(c => c.type === "SkinnedMesh");
                     if (skinnedMesh != null) {
                         this.skinnedMesh = skinnedMesh;
@@ -72,7 +65,7 @@ GF.GameObject = class GameObject extends GF.StateMachine {
                     this.armature = this.object3D.children.find(c => c.type === "Group" && c.name === "Armature");
 
                     // animations properties
-                    for (const action of this.object3DParams.skeletalAnimations) {
+                    for (const action of this._object3DParams.skeletalAnimations) {
                         this.updateAnimationActionProperties(action.name, action.speed, action.clamp, action.loop ? null : {type: THREE.LoopOnce, repetitions: 0});
                     }
                 }
@@ -84,8 +77,8 @@ GF.GameObject = class GameObject extends GF.StateMachine {
 
             this.onInit();
 
-            if (this.onInitSubscriptions != null) {
-                for (let subscription of this.onInitSubscriptions) {
+            if (this._onInitSubscriptions != null) {
+                for (let subscription of this._onInitSubscriptions) {
                     if (typeof(subscription) === "function") {
                         subscription();
                     }
@@ -140,28 +133,28 @@ GF.GameObject = class GameObject extends GF.StateMachine {
 
     //#endregion
 
-    //#region subscriptions
+    //#region API
 
     /**
      * Subscribe onInit
      * @param {function} callback 
      */
     subscribeOnInit(callback) {
-        this.onInitSubscriptions.push(callback);
+        this._onInitSubscriptions.push(callback);
     }
 
     /**
      * Clear 'init' subscriptions
      */
     clearOnInitSubscriptions() {
-        this.onInitSubscriptions = [];
+        this._onInitSubscriptions = [];
     }
 
     /**
      * Unsubscribe input
      */
     offKeySubscriptions() {
-        for (const subscription of this.keySubscriptions) {
+        for (const subscription of this._keySubscriptions) {
             this.input.unbind(subscription);
         }
     }
@@ -170,7 +163,7 @@ GF.GameObject = class GameObject extends GF.StateMachine {
      * Unsubscribe mouse input
      */
     offMouseSubscriptions() {
-        for (const subscription of this.mouseSubscriptions) {
+        for (const subscription of this._mouseSubscriptions) {
             this.input.unbindMouseEvent(subscription);
         }
     }
@@ -182,10 +175,10 @@ GF.GameObject = class GameObject extends GF.StateMachine {
      * @param {function} callback the callback
      */
     onKey(key, type, callback) {
-        if (this.keySubscriptions == null) {
-            this.keySubscriptions = [];
+        if (this._keySubscriptions == null) {
+            this._keySubscriptions = [];
         }
-        this.keySubscriptions.push(this.input.bind(key, type, callback.bind(this)));
+        this._keySubscriptions.push(this.input.bind(key, type, callback.bind(this)));
     }
 
     /**
@@ -195,10 +188,10 @@ GF.GameObject = class GameObject extends GF.StateMachine {
      * @param {function} callback the callback
      */
     onGamePadButton(button, type, callback) {
-        if (this.keySubscriptions == null) {
-            this.keySubscriptions = [];
+        if (this._keySubscriptions == null) {
+            this._keySubscriptions = [];
         }
-        this.keySubscriptions.push(this.input.bindGamePad(button, type, callback.bind(this)));
+        this._keySubscriptions.push(this.input.bindGamePad(button, type, callback.bind(this)));
     }
 
     /**
@@ -207,15 +200,11 @@ GF.GameObject = class GameObject extends GF.StateMachine {
      * @param {function} callback the callback
      */
     onMouse(event, callback) {
-        if (this.mouseSubscriptions == null) {
-            this.mouseSubscriptions = [];
+        if (this._mouseSubscriptions == null) {
+            this._mouseSubscriptions = [];
         }
-        this.mouseSubscriptions.push(this.input.bindMouseEvent(event, callback.bind(this)));
+        this._mouseSubscriptions.push(this.input.bindMouseEvent(event, callback.bind(this)));
     }
-
-    //#endregion
-
-    //#region animation
 
     /**
      * Set Object3D
@@ -275,13 +264,13 @@ GF.GameObject = class GameObject extends GF.StateMachine {
         this.object3D = mesh;
 
         // create animation mixer
-        this.animationMixer = new THREE.AnimationMixer(this.object3D);
+        this._animationMixer = new THREE.AnimationMixer(this.object3D);
 
         const animations = this.object3D.animations != null ? this.object3D.animations
         : (this.object3D.geometry != null ? this.object3D.geometry.animations : null)
 
         // create animation actions
-        this.animationActions = {};
+        this._animationActions = {};
 
         if (animations != null) {
             for (const animation of animations) {
@@ -289,9 +278,9 @@ GF.GameObject = class GameObject extends GF.StateMachine {
                     animation.name = animation.name.replace("Armature|", "");
                 }
 
-                this.animationActions[animation.name] = this.animationMixer.clipAction(animation);
-                this.animationActions[animation.name].setEffectiveWeight(1);
-                this.animationActions[animation.name].enabled = true;
+                this._animationActions[animation.name] = this._animationMixer.clipAction(animation);
+                this._animationActions[animation.name].setEffectiveWeight(1);
+                this._animationActions[animation.name].enabled = true;
             }
         }
     }
@@ -308,11 +297,11 @@ GF.GameObject = class GameObject extends GF.StateMachine {
      *  }
      */
     updateAnimationActionProperties(action, timeScale, clampWhenFinished, loop) {
-        if (this.animationActions[action]) {
-            this.animationActions[action].setEffectiveTimeScale(timeScale);
-            this.animationActions[action].clampWhenFinished = clampWhenFinished;
+        if (this._animationActions[action]) {
+            this._animationActions[action].setEffectiveTimeScale(timeScale);
+            this._animationActions[action].clampWhenFinished = clampWhenFinished;
             if (loop != null && loop.type != null && loop.repetitions != null) {
-                this.animationActions[action].setLoop(loop.type, loop.repetitions)
+                this._animationActions[action].setLoop(loop.type, loop.repetitions)
             }
         }
     }
@@ -321,8 +310,8 @@ GF.GameObject = class GameObject extends GF.StateMachine {
      * Is any animation running
      */
     isAnyAnimationRunning() {
-        for (const action in this.animationActions) {
-            if (this.animationActions[action].isRunning()) {
+        for (const action in this._animationActions) {
+            if (this._animationActions[action].isRunning()) {
                 return true;
             }
         }
@@ -335,7 +324,7 @@ GF.GameObject = class GameObject extends GF.StateMachine {
      * @param returnAnimationName the animation name to play after this ends (the return animation)
      */
     playAnimationAction(name, onFinish) {
-        if (this.animationActiveAction != null && name == this.animationActiveAction && this.animationActions[this.animationActiveAction].isRunning()) {
+        if (this.animationActiveAction != null && name == this.animationActiveAction && this._animationActions[this.animationActiveAction].isRunning()) {
             return;
         }
 
@@ -343,11 +332,11 @@ GF.GameObject = class GameObject extends GF.StateMachine {
 
         let from;
         if (this.animationActiveAction) {
-            from = this.animationActions[this.animationActiveAction ].play();
+            from = this._animationActions[this.animationActiveAction ].play();
             from.enabled = true;
         }
 
-        const to = this.animationActions[ name ].play();
+        const to = this._animationActions[ name ].play();
         to.enabled = true;
 
         if (to.loop === THREE.LoopOnce) {
@@ -367,10 +356,6 @@ GF.GameObject = class GameObject extends GF.StateMachine {
         })
     }
 
-    //#endregion
-
-    //#region getters/setters
-
     /**
      * Get own id
      */
@@ -379,9 +364,9 @@ GF.GameObject = class GameObject extends GF.StateMachine {
     }
 
     /**
-     * Get type of this object
+     * Get type name of this object with Inheritance types
      */
-    getType() {
+    getTypeName() {
         return this.constructor.name + (super.getType != null ? "." + super.getType() : "");
     }
 
@@ -392,30 +377,6 @@ GF.GameObject = class GameObject extends GF.StateMachine {
     setVisible(visible) {
         this.object3D.__old_visible = visible;
         return this.object3D.visible = visible;
-    }
-
-    /**
-     * Get/Set object 3d vectorial property
-     * @returns 
-     */
-    _property(name, args) {
-        if (!this.object3D) {
-            return null;
-        }
-        switch (args.length) {
-            case 0: 
-                return this.object3D[name].clone();
-            case 1: 
-                return this.object3D[name][args[0]];
-            case 2:
-                this.object3D[name][args[0]] = args[1];
-                return;
-            case 3:
-                this.object3D[name].x = args[0],
-                this.object3D[name].y = args[1],
-                this.object3D[name].z = args[2]
-                return;
-        }
     }
 
     /**
@@ -439,14 +400,17 @@ GF.GameObject = class GameObject extends GF.StateMachine {
         return Math.abs(this.object3D.geometry.boundingBox.max.y - this.object3D.geometry.boundingBox.min.y);
     }
 
-    //#endregion
-
-    //#region utils
+    /**
+     * Get Material
+     */
+    getMaterial() {
+        return this.object3D != null ? this.object3D.material : null;
+    }
 
     /**
-     * Add a THREEJs object to the scene (it will be removed from scene when this object is destroyed)
-     * @param {THREE.Object} object3D 
-     * @param {boolean} affectsRayCollision
+     * Add a ThreeJs object to the scene (it will be removed from scene when this object is destroyed)
+     * @param {THREE.Object} object3D the object
+     * @param {boolean} affectsRayCollision if the object affects ray collision (if affects PhysicsObject's that use ray collision)
      */
     addToScene(object3D, affectsRayCollision) {
         this.game.addToScene(object3D, affectsRayCollision);
@@ -456,16 +420,16 @@ GF.GameObject = class GameObject extends GF.StateMachine {
         this.sceneAddedObjects.push(object3D);
     }
 
-    //#endregion
-
-    //#region lifecycle
-
     /**
      * Destroy this object
      */
-    destroySelf() {
+    destroy() {
         this._destroy();
     }
+
+    //#endregion
+
+    //#region lifecycle
 
     /**
      * On object init
@@ -482,10 +446,10 @@ GF.GameObject = class GameObject extends GF.StateMachine {
         super.onUpdate(delta);
 
         // update animation mixer
-        if (this.animationMixer) {
-            this.animationMixer.update(delta * DELTA_MULTIPLIER);
+        if (this._animationMixer) {
+            this._animationMixer.update(delta * DELTA_MULTIPLIER);
 
-            if (!this.animationActions[this.animationActiveAction].isRunning() && this.currentAnimationFinishCallback) {
+            if (!this._animationActions[this.animationActiveAction].isRunning() && this.currentAnimationFinishCallback) {
                 this.currentAnimationFinishCallback();
             }
         }

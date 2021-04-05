@@ -8,22 +8,29 @@ GF.StateMachine = class StateMachine {
      * Constructor
      */
     constructor() {
-        this.stateCallbacks = {};
-        this.stateTransitionCallbacks = {};
-        this.stateTransitionProhibitions = {};
-        this.executeLaterCallbacks = [];
+        this._stateCallbacks = {};
+        this._stateTransitionCallbacks = {};
+        this._stateTransitionProhibitions = {};
+        this._executeLaterCallbacks = [];
         this.currentStateTimer = 0;
 
         this._tickDeltaCount = 0;
+
+        this._lastDelta = 0;
     }
 
     /**
-     * Execute a callback after some time passed
+     * Execute a callback after some time passed (will 'debounce' if called multiple times for the same callback)
      * @param {number} time time in milliseconds
      * @param {function} callback the callback
      */
     executeAfter(time, callback) {
-        this.executeLaterCallbacks.push({callback: callback, time: time, currentTime: 0});
+        var existingCallback = this._executeLaterCallbacks.find(c => c.callback === callback);
+        if (existingCallback != null) {
+            existingCallback.currentTime = 0;
+        } else {
+            this._executeLaterCallbacks.push({callback: callback, time: time, currentTime: 0});
+        }
     }
 
     /**
@@ -32,10 +39,10 @@ GF.StateMachine = class StateMachine {
      * @param {function} callback 
      */
     setStateAction(state, callback) {
-        if (this.stateCallbacks == null) {
-            this.stateCallbacks = {};
+        if (this._stateCallbacks == null) {
+            this._stateCallbacks = {};
         }
-        this.stateCallbacks[state] = callback;
+        this._stateCallbacks[state] = callback;
     }
 
     /**
@@ -45,8 +52,8 @@ GF.StateMachine = class StateMachine {
      * @param {function} callback 
      */
     setStateTransitionAction(fromState, toState, callback) {
-        if (this.stateTransitionCallbacks == null) {
-            this.stateTransitionCallbacks = {};
+        if (this._stateTransitionCallbacks == null) {
+            this._stateTransitionCallbacks = {};
         }
 
         if (fromState === toState) {
@@ -55,9 +62,9 @@ GF.StateMachine = class StateMachine {
 
         if (toState != null) {
             if (fromState != null) {
-                this.stateTransitionCallbacks[fromState + "-" + toState] = callback;
+                this._stateTransitionCallbacks[fromState + "-" + toState] = callback;
             } else {
-                this.stateTransitionCallbacks[toState] = callback;
+                this._stateTransitionCallbacks[toState] = callback;
             }
         }
     }
@@ -68,10 +75,10 @@ GF.StateMachine = class StateMachine {
      * @param {string} toState
      */
     setStateTransitionProhibition(fromState, toState) {
-        if (this.stateTransitionProhibitions == null) {
-            this.stateTransitionProhibitions = {};
+        if (this._stateTransitionProhibitions == null) {
+            this._stateTransitionProhibitions = {};
         }
-        this.stateTransitionProhibitions[fromState + "-" + toState] = true;
+        this._stateTransitionProhibitions[fromState + "-" + toState] = true;
     }
 
     /**
@@ -81,15 +88,15 @@ GF.StateMachine = class StateMachine {
     setState(newState) {
         var oldState = this.state;
 
-        if (!this.stateTransitionProhibitions[oldState + "-" + newState]) {
+        if (!this._stateTransitionProhibitions[oldState + "-" + newState]) {
             this.state = newState;
             this.currentStateTimer = 0;
 
-            var transitionCallback = this.stateTransitionCallbacks[this.state];
+            var transitionCallback = this._stateTransitionCallbacks[this.state];
             if (typeof(transitionCallback) === "function" && oldState !== this.state) {
                 transitionCallback();
             } else {
-                transitionCallback = this.stateTransitionCallbacks[oldState + "-" + this.state];
+                transitionCallback = this._stateTransitionCallbacks[oldState + "-" + this.state];
                 if (typeof(transitionCallback) === "function") {
                     transitionCallback();
                 }
@@ -104,17 +111,19 @@ GF.StateMachine = class StateMachine {
      * @param {number} delta 
      */
     onUpdate(delta) {
-        if (this.stateCallbacks != null && typeof(this.stateCallbacks[this.state]) === "function") {
-            this.stateCallbacks[this.state](delta);
+        this._lastDelta = delta;
+
+        if (this._stateCallbacks != null && typeof(this._stateCallbacks[this.state]) === "function") {
+            this._stateCallbacks[this.state](delta);
         }
 
-        if (this.executeLaterCallbacks.length > 0) {
-            for (var i = 0; i < this.executeLaterCallbacks.length; i++) {
-                this.executeLaterCallbacks[i].currentTime += delta;
+        if (this._executeLaterCallbacks.length > 0) {
+            for (var i = 0; i < this._executeLaterCallbacks.length; i++) {
+                this._executeLaterCallbacks[i].currentTime += delta;
 
-                if (this.executeLaterCallbacks[i].currentTime >= this.executeLaterCallbacks[i].time) {
-                    this.executeLaterCallbacks[i].callback();
-                    this.executeLaterCallbacks.splice(i, 1);
+                if (this._executeLaterCallbacks[i].currentTime >= this._executeLaterCallbacks[i].time) {
+                    this._executeLaterCallbacks[i].callback();
+                    this._executeLaterCallbacks.splice(i, 1);
                 }
             }
         }
@@ -133,5 +142,5 @@ GF.StateMachine = class StateMachine {
     /**
      * On Tick (each second of the game run) needs to be implemented
      */
-    // onTick() {}
+    onTick() {}
 }

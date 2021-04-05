@@ -84,11 +84,15 @@ GF.KeyPressState = {
  */
 GF.GameInputManager = class GameInputManager {
     constructor(game){
-        this.game = game;
-        this.mouseClickCallback = null;
-        this.mouseDownCallback = null;
-        this.mouseUpCallback = null;
-        this.mouseMoveCallback = null;
+        this._game = game;
+        this._gamepads = null;
+        this._keyboard = null;
+        this._keyBinds = null;
+
+        this._mouseClickCallback = null;
+        this._mouseDownCallback = null;
+        this._mouseDownCallback = null;
+        this._mouseMoveCallback = null;
     }
 
     //#region API
@@ -99,7 +103,7 @@ GF.GameInputManager = class GameInputManager {
      * @param {number} button the button index
      */
     isGamepadButtonPressed(gamepad, button) {
-        return this.gamepads[gamepad] != null ? this.gamepads[gamepad].buttons[button].pressed : false;
+        return this._gamepads[gamepad] != null ? this._gamepads[gamepad].buttons[button].pressed : false;
     }
 
     /**
@@ -108,7 +112,7 @@ GF.GameInputManager = class GameInputManager {
      * @param {number} axis the axis index
      */
     getGamepadAxisState(gamepad, axis) {
-        return this.gamepads[gamepad] != null ? Math.round(this.gamepads[gamepad].axes[axis] * 100) / 100 : 0;
+        return this._gamepads[gamepad] != null ? Math.round(this._gamepads[gamepad].axes[axis] * 100) / 100 : 0;
     }
 
     /**
@@ -116,7 +120,7 @@ GF.GameInputManager = class GameInputManager {
      * @param {string} key 
      */
     isPressed(key) {
-        return this.keyboard.pressed(key);
+        return this._keyboard.pressed(key);
     }
 
     /**
@@ -127,8 +131,8 @@ GF.GameInputManager = class GameInputManager {
      * @return subscription
      */
     bind(key, type, callback) {
-        if (this.keyBinds[key] == null) {
-            this.keyBinds[key] = {
+        if (this._keyBinds[key] == null) {
+            this._keyBinds[key] = {
                 type: "keyboard",
                 state: GF.KeyPressState.NONE,
                 [GF.KeyPressState.PRESSED]: [],
@@ -137,7 +141,7 @@ GF.GameInputManager = class GameInputManager {
             }
         }
 
-        this.keyBinds[key][type].push(callback);
+        this._keyBinds[key][type].push(callback);
 
         return {key: key, type: type, callback: callback};
     }
@@ -151,8 +155,8 @@ GF.GameInputManager = class GameInputManager {
      * @return subscription
      */
     bindGamePad(gamepadKey, type, callback) {
-        if (this.keyBinds[gamepadKey] == null) {
-            this.keyBinds[gamepadKey] = {
+        if (this._keyBinds[gamepadKey] == null) {
+            this._keyBinds[gamepadKey] = {
                 type: "gamepad",
                 gamepad: gamepadKey[0],
                 button: gamepadKey[1],
@@ -163,7 +167,7 @@ GF.GameInputManager = class GameInputManager {
             }
         }
 
-        this.keyBinds[gamepadKey][type].push(callback);
+        this._keyBinds[gamepadKey][type].push(callback);
 
         return {key: gamepadKey, type: type, callback: callback};
     }
@@ -174,9 +178,9 @@ GF.GameInputManager = class GameInputManager {
      */
     unbind(subscription) {
         if (subscription != null) {
-            var keyBind = this.keyBinds[subscription.key];
+            var keyBind = this._keyBinds[subscription.key];
             if (keyBind != null) {
-                var keyBindType = this.keyBinds[subscription.key][subscription.type];
+                var keyBindType = this._keyBinds[subscription.key][subscription.type];
                 if (keyBindType != null) {
                     var index = keyBindType.indexOf(subscription.callback);
                     if (index >= 0) {
@@ -189,6 +193,8 @@ GF.GameInputManager = class GameInputManager {
 
     /**
      * Bind mouse event
+     * @param {MouseEvent} event the mouse event
+     * @param {function} callback the callback
      */
     bindMouseEvent(event, callback) {
         if (this.mouseEventBinds == null) {
@@ -201,21 +207,24 @@ GF.GameInputManager = class GameInputManager {
 
         this.mouseEventBinds[event].push(callback);
 
-        if (event === "click" && this.mouseClickCallback == null) {
-            this.mouseClickCallback = this.mouseClick.bind(this);
-            document.addEventListener("click", this.mouseClickCallback, false);
+        if (event === "click" && this._mouseClickCallback == null) {
+            this._mouseClickCallback = this.mouseClick.bind(this);
+            document.addEventListener("click", this._mouseClickCallback, false);
         }
-        else if (event === "down" && this.mouseDownCallback == null) {
-            this.mouseDownCallback = this.mouseDown.bind(this);
-            document.addEventListener("mousedown", this.mouseDownCallback, false);
+        else if (event === "down" && this._mouseDownCallback == null) {
+            this._mouseDownCallback = this.mouseDown.bind(this);
+            document.addEventListener("mousedown", this._mouseDownCallback, false);
         }
-        else if (event === "up" && this.mouseUpCallback == null) {
-            this.mouseUpCallback = this.mouseUp.bind(this);
-            document.addEventListener("mouseup", this.mouseUpCallback, false);
+        else if (event === "up" && this._mouseDownCallback == null) {
+            this._mouseDownCallback = this.mouseUp.bind(this);
+            document.addEventListener("mouseup", this._mouseDownCallback, false);
         }
-        else if (event === "move" && this.mouseMoveCallback == null) {
-            this.mouseMoveCallback = this.mouseMove.bind(this);
-            document.addEventListener("mousemove", this.mouseMoveCallback, false);
+        else if (event === "move" && this._mouseMoveCallback == null) {
+            this._mouseMoveCallback = this.mouseMove.bind(this);
+            document.addEventListener("mousemove", this._mouseMoveCallback, false);
+        } else if (event === "wheel" && this._mouseMoveCallback == null) {
+            this.mouseWheelCallback = this.mouseWheel.bind(this);
+            document.addEventListener("mousewheel", this.mouseWheelCallback, false);
         }
 
         return {event: event, callback: callback};
@@ -243,7 +252,7 @@ GF.GameInputManager = class GameInputManager {
      */
     unbindAll(key) {
         if (key != null) {
-            this.keyBinds[key] = {
+            this._keyBinds[key] = {
                 state: GF.KeyPressState.NONE,
                 [GF.KeyPressState.PRESSED]: [],
                 [GF.KeyPressState.PRESSING]: [],
@@ -279,6 +288,21 @@ GF.GameInputManager = class GameInputManager {
     //#endregion
 
     // #region Internal
+
+    /**
+     * Mouse wheel
+     * @param {MouseEvent} event 
+     */
+     mouseWheel(event) {
+        if (this.mouseEventBinds != null) {
+            if (this.mouseEventBinds['wheel'] instanceof Array) {
+                for (const callback of this.mouseEventBinds['wheel']) {
+                    callback(event);
+                }
+            }
+        }
+    }
+
 
     /**
      * Mouse move
@@ -339,20 +363,20 @@ GF.GameInputManager = class GameInputManager {
     /**
      * Copy gamepads initial values
      */
-    copyGamePadInitialValues() {
+    _copyGamePadInitialValues() {
         setTimeout(() => {
-            this.gamepads = navigator.getGamepads ? navigator.getGamepads() : (navigator.webkitGetGamepads ? navigator.webkitGetGamepads : []);
+            this._gamepads = navigator.getGamepads ? navigator.getGamepads() : (navigator.webkitGetGamepads ? navigator.webkitGetGamepads : []);
 
-            this.gamepadsInitialValues = [];
-            for (var g = 0; g < this.gamepads.length; g++) {
-                if (this.gamepads[g] != null) {
+            this._gamepadsInitialValues = [];
+            for (var g = 0; g < this._gamepads.length; g++) {
+                if (this._gamepads[g] != null) {
                     // copy gamepad buttons
-                    this.gamepadsInitialValues.push({
-                        buttons: this.gamepads[g].buttons.map((b) => {return {pressed: b.pressed}}),
-                        axes: JSON.parse(JSON.stringify(this.gamepads[g].axes))
+                    this._gamepadsInitialValues.push({
+                        buttons: this._gamepads[g].buttons.map((b) => {return {pressed: b.pressed}}),
+                        axes: JSON.parse(JSON.stringify(this._gamepads[g].axes))
                     });
                 } else {
-                    this.gamepadsInitialValues.push(null);
+                    this._gamepadsInitialValues.push(null);
                 }
             }
         }, 500)
@@ -366,10 +390,10 @@ GF.GameInputManager = class GameInputManager {
      * init
      */
     _init() {
-        this.keyBinds = {};
-        this.keyboard = new THREEx.KeyboardState();
+        this._keyBinds = {};
+        this._keyboard = new THREEx.KeyboardState();
 
-        this.keyboard.onKeyChangeCallback = (key) => {
+        this._keyboard.onKeyChangeCallback = (key) => {
             if (this.listenForInputCallbacks != null) {
                 for (const callback of this.listenForInputCallbacks) {
                     callback(GF.GAME_CONTROL_TYPE.KEYBOARD, key);
@@ -378,26 +402,26 @@ GF.GameInputManager = class GameInputManager {
         };
 
         // gamepad
-        this.gamepads = {};
+        this._gamepads = {};
 
         // connected handler
-        this.gamepadHandlerConnected = (event) => {
+        this._gamepadHandlerConnected = (event) => {
             console.log("[INFO] (Gamepad connected): " + event.gamepad.id);
-            this.game.fireEvent(INPUT_GAMEPAD_CONNECTED, {gamepad: event.gamepad.index});
+            this._game.fireEvent(INPUT_GAMEPAD_CONNECTED, {gamepad: event.gamepad.index});
 
-            this.copyGamePadInitialValues();
+            this._copyGamePadInitialValues();
         }
 
         // disconnected handler
-        this.gamepadHandlerDisconnected = (event) => {
+        this._gamepadHandlerDisconnected = (event) => {
             console.log("[INFO] (Gamepad disconnected): " + event.gamepad.id);
-            this.game.fireEvent(INPUT_GAMEPAD_DISCONNECTED, {gamepad: event.gamepad.index});
+            this._game.fireEvent(INPUT_GAMEPAD_DISCONNECTED, {gamepad: event.gamepad.index});
 
-            this.copyGamePadInitialValues();
+            this._copyGamePadInitialValues();
         }
 
-        window.addEventListener("gamepadconnected", this.gamepadHandlerConnected, false);
-        window.addEventListener("gamepaddisconnected", this.gamepadHandlerDisconnected, false);
+        window.addEventListener("gamepadconnected", this._gamepadHandlerConnected, false);
+        window.addEventListener("gamepaddisconnected", this._gamepadHandlerDisconnected, false);
     }
 
     /**
@@ -405,16 +429,16 @@ GF.GameInputManager = class GameInputManager {
      * @param {number} delta 
      */
     _update(delta) {
-        this.gamepads = navigator.getGamepads ? navigator.getGamepads() : (navigator.webkitGetGamepads ? navigator.webkitGetGamepads : []);
-        if (this.gamepads != null && this.gamepadsInitialValues == null) {
-            this.copyGamePadInitialValues();
+        this._gamepads = navigator.getGamepads ? navigator.getGamepads() : (navigator.webkitGetGamepads ? navigator.webkitGetGamepads : []);
+        if (this._gamepads != null && this._gamepadsInitialValues == null) {
+            this._copyGamePadInitialValues();
         }
 
         if (this.listenForInputCallbacks != null && this.listenForInputCallbacks.length > 0
-            && this.gamepads != null && this.gamepads[0] != null && this.gamepadsInitialValues != null) {
+            && this._gamepads != null && this._gamepads[0] != null && this._gamepadsInitialValues != null) {
             // check gamepad buttons
-            for (var i = 0; i < this.gamepads[0].buttons.length; i++) {
-                if (this.gamepads[0].buttons[i].pressed) {
+            for (var i = 0; i < this._gamepads[0].buttons.length; i++) {
+                if (this._gamepads[0].buttons[i].pressed) {
                     for (const callback of this.listenForInputCallbacks) {
                         callback(GF.GAME_CONTROL_TYPE.GAMEPAD_BUTTON, i);
                     }
@@ -422,8 +446,8 @@ GF.GameInputManager = class GameInputManager {
                 }
             }
             // check gamepad axis
-            for (var i = 0; i < this.gamepads[0].axes.length; i++) {
-                if (Math.round(this.gamepads[0].axes[i]) !== Math.round(this.gamepadsInitialValues[0].axes[i])) {
+            for (var i = 0; i < this._gamepads[0].axes.length; i++) {
+                if (Math.round(this._gamepads[0].axes[i]) !== Math.round(this._gamepadsInitialValues[0].axes[i])) {
                     for (const callback of this.listenForInputCallbacks) {
                         callback(GF.GAME_CONTROL_TYPE.GAMEPAD_AXIS, i);
                     }
@@ -432,8 +456,8 @@ GF.GameInputManager = class GameInputManager {
             }
         }
 
-        for (const keyBind in this.keyBinds) {
-            this._currentKeyBind = this.keyBinds[keyBind];
+        for (const keyBind in this._keyBinds) {
+            this._currentKeyBind = this._keyBinds[keyBind];
             if (this._currentKeyBind == null || this._currentKeyBind == {}) {
                 continue;
             }
@@ -471,9 +495,9 @@ GF.GameInputManager = class GameInputManager {
      * destroy
      */
     _destroy() {
-        if (this.keyBinds) {
-            for (var keyBindKey in this.keyBinds) {
-                this.keyBinds[keyBindKey] = {
+        if (this._keyBinds) {
+            for (var keyBindKey in this._keyBinds) {
+                this._keyBinds[keyBindKey] = {
                     state: GF.KeyPressState.NONE,
                     [GF.KeyPressState.PRESSED]: [],
                     [GF.KeyPressState.PRESSING]: [],
@@ -481,27 +505,27 @@ GF.GameInputManager = class GameInputManager {
                 };
             }
         }
-        this.keyboard.destroy();
+        this._keyboard.destroy();
 
-        if (this.mouseClickCallback != null) {
-            document.removeEventListener("click", this.mouseClickCallback, false);
-            this.mouseClickCallback = null;
+        if (this._mouseClickCallback != null) {
+            document.removeEventListener("click", this._mouseClickCallback, false);
+            this._mouseClickCallback = null;
         }
-        if (this.mouseDownCallback != null) {
-            document.removeEventListener("mousedown", this.mouseDownCallback, false);
-            this.mouseDownCallback = null;
+        if (this._mouseDownCallback != null) {
+            document.removeEventListener("mousedown", this._mouseDownCallback, false);
+            this._mouseDownCallback = null;
         }
-        if (this.mouseUpCallback != null) {
-            document.removeEventListener("mouseup", this.mouseUpCallback, false);
-            this.mouseUpCallback = null;
+        if (this._mouseDownCallback != null) {
+            document.removeEventListener("mouseup", this._mouseDownCallback, false);
+            this._mouseDownCallback = null;
         }
-        if (this.mouseMoveCallback != null) {
-            document.removeEventListener("mousemove", this.mouseMoveCallback, false);
-            this.mouseMoveCallback = null;
+        if (this._mouseMoveCallback != null) {
+            document.removeEventListener("mousemove", this._mouseMoveCallback, false);
+            this._mouseMoveCallback = null;
         }
 
-        window.removeEventListener("gamepadconnected", this.gamepadHandlerConnected, false);
-        window.removeEventListener("gamepaddisconnected", this.gamepadHandlerDisconnected, false);
+        window.removeEventListener("gamepadconnected", this._gamepadHandlerConnected, false);
+        window.removeEventListener("gamepaddisconnected", this._gamepadHandlerDisconnected, false);
     }
 
     //#endregion

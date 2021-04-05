@@ -3,69 +3,75 @@
  * PageManager
  */
 GF.PageManager = class PageManager {
+    /**
+     * PageManager
+     * @param {HTMLElement} pageContainer page container element
+     * @param {HTMLElement} modalContainer modal container element
+     */
     constructor(pageContainer, modalContainer) {
-        this.pages = {};
-        this.pageContainer = pageContainer;
-        this.modalContainer = modalContainer;
-        this.currentPage = null;
-        this.currentModal = null;
-        this.navigating = false;
+        this._pages = {};
+        this._pageContainer = pageContainer;
+        this._modalContainer = modalContainer;
+        this._currentPage = null;
+        this._currentModal = null;
+        this._navigating = false;
 
-        this.animateCallback = this._animate.bind(this);
+        this._animateCallback = this._animate.bind(this);
         this.resumeAnimation();
     }
 
-    //#region public
+    //#region API
 
     /**
-     * Add page
-     * @param {string} id 
-     * @param {Page} page 
+     * Add a page
+     * @param {string} id page id
+     * @param {Page} page the oage
      */
     addPage(id, page) {
         page.pageId = id;
-        this.pages[id] = page;
+        this._pages[id] = page;
     }
 
     /**
-     * Remove page
-     * @param {srtring} id 
+     * Remove a page
+     * @param {srtring} id page id
      */
     removePage(id) {
-        this.pages[id] = undefined;
+        this._pages[id] = undefined;
     }
 
     /**
      * Get page
-     * @param {srtring} id 
+     * @param {string} id page id
      */
     getPage(id) {
-        return this.pages[id];
+        return this._pages[id];
     }
 
     /**
      * Go to page
-     * @param {string} id 
+     * @param {string} id page id
+     * @param {any} args arguments (optional)
      */
     goTo(id, args) {
-        if (!this.navigating) {
+        if (!this._navigating) {
             let closePromise = Promise.resolve();
-            if (this.currentPage != null) {
-                closePromise = this.currentPage._close();
+            if (this._currentPage != null) {
+                closePromise = this._currentPage._close();
                 if (closePromise == null) {
                     closePromise = Promise.resolve();
                 }
             }
-            this.navigating = true;
+            this._navigating = true;
             closePromise.then(() => {
-                this.currentPage = this.pages[id];
-                const openPromise = this.currentPage._open(this.pageContainer, args);
+                this._currentPage = this._pages[id];
+                const openPromise = this._currentPage._open(this._pageContainer, args);
                 if (openPromise != null) {
                     openPromise.then(() => {
-                        this.navigating = false;
+                        this._navigating = false;
                     });
                 } else {
-                    this.navigating = false;
+                    this._navigating = false;
                 }
             });
         }
@@ -73,18 +79,18 @@ GF.PageManager = class PageManager {
 
     /**
      * Open modal
-     * @param {string} id 
+     * @param {string} id page id 
      */
     openModal(id) {
         let closePromise = Promise.resolve();
-        if (this.currentModal != null) {
-            closePromise = this.currentModal._close();
+        if (this._currentModal != null) {
+            closePromise = this._currentModal._close();
         }
         closePromise.then(() => {
-            this.currentModal = this.pages[id];
-            if (this.currentModal != null) {
-                this.modalContainer.style.display = "initial";
-                this.currentModal._open(this.modalContainer);
+            this._currentModal = this._pages[id];
+            if (this._currentModal != null) {
+                this._modalContainer.style.display = "initial";
+                this._currentModal._open(this._modalContainer);
             }
         });
     }
@@ -93,16 +99,16 @@ GF.PageManager = class PageManager {
      * Close modal
      */
     closeModal() {
-        if (this.currentModal != null) {
-            let promise = this.currentModal._close();
-            this.modalContainer.style.display = "none";
+        if (this._currentModal != null) {
+            let promise = this._currentModal._close();
+            this._modalContainer.style.display = "none";
             
             if (promise != null) {
                 promise.then(() => {
-                    this.currentModal = null;
+                    this._currentModal = null;
                 });
             } else {
-                this.currentModal = null;
+                this._currentModal = null;
             }
         }
     }
@@ -111,20 +117,19 @@ GF.PageManager = class PageManager {
      * Resume the animation
      */
     resumeAnimation() {
-        this.running = true;
-        this.currentTime = new Date().valueOf();
-        this.delta = 0;
-        this.animateCallback();
+        this._running = true;
+        this._lastTime = new Date().valueOf();
+        this._animateCallback();
     }
 
     /**
      * Pause the animation
      */
     pauseAnimation() {
-        if (this.animationFrameRequest) {
-            cancelAnimationFrame(this.animationFrameRequest);
+        if (this._animationFrameRequest) {
+            cancelAnimationFrame(this._animationFrameRequest);
         }
-        this.running = false;
+        this._running = false;
     }
 
     /**
@@ -133,41 +138,37 @@ GF.PageManager = class PageManager {
      * @param {number} height 
      */
     onContainerResize(width, height) {
-        if (this.currentPage != null) {
-            this.currentPage._resize(width, height);
+        if (this._currentPage != null) {
+            this._currentPage._resize(width, height);
         }
-        if (this.currentModal != null) {
-            this.currentModal._resize(width, height);
+        if (this._currentModal != null) {
+            this._currentModal._resize(width, height);
         }
     }
 
     //#endregion
 
-    //#region private
+    //#region Internal
 
     /**
      * Animate
      */
     _animate() {
-        if (this.running === true) {
+        if (this._running === true) {
             // calculate delta
-            this.newTime = new Date().valueOf();
-            this.delta = this.newTime - this.currentTime;
-            this.currentTime = this.newTime;
+            var now = new Date().valueOf();
+            var delta = now - this._lastTime;
+            this._lastTime = now;
 
-            if (this.currentModal != null) {
-                this.currentModal._update(this.delta);
-            } else if (this.currentPage != null) {
-                this.currentPage._update(this.delta);
+            if (this._currentModal != null) {
+                this._currentModal._update(delta);
+            } else if (this._currentPage != null) {
+                this._currentPage._update(delta);
             }
 
-            requestAnimationFrame(this.animateCallback);
+            this._animationFrameRequest = requestAnimationFrame(this._animateCallback);
         }
     }
-
-    //#endregion
-
-    //#region system
 
     _destroy() {
         this.pauseAnimation();

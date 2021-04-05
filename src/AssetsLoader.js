@@ -27,9 +27,9 @@ GF.AssetType = {
  */
 GF.AssetsLoader = class AssetsLoader {
     constructor() {
-        this.loading = false;
-        this.assets = {};
-        this.loaders = {
+        this._loading = false;
+        this._assets = {};
+        this._loaders = {
             [GF.AssetType.Model3D_OBJ]: new GF.OBJFileLoader(GF.AssetType.Model3D_OBJ),
             [GF.AssetType.Texture]: new GF.TextureFileLoader(GF.AssetType.Texture),
             [GF.AssetType.Image]: new GF.ImageFileLoader(GF.AssetType.Image),
@@ -42,25 +42,7 @@ GF.AssetsLoader = class AssetsLoader {
         }
     }
 
-    /**
-     * Set graphics preset
-     * @param {string} gameGraphicsPreset 
-     */
-    setGraphicsPreset(gameGraphicsPreset) {
-        this.gameGraphicsPreset = gameGraphicsPreset;
-        for (const loader in this.loaders) {
-            this.loaders[loader].gameGraphicsPreset = this.gameGraphicsPreset;
-        }
-    }
-
-    /**
-     * Add new custom asset loader 
-     * @param {string} typeName the loader type name
-     * @param {string} loaderClass name of a class that extends GF.FileLoader
-     */
-    addCustomAssetLoader(typeName, loaderClass) {
-        this.loaders[typeName] = eval(`new ${loaderClass}(${typeName})`);
-    }
+    //#region Internal
 
     /**
      * Update progress
@@ -69,12 +51,12 @@ GF.AssetsLoader = class AssetsLoader {
      * @param {function} onUpdate 
      * @param {function} onFinish 
      */
-    updateProgress(objectsLoaded, objectsCount, onUpdate, onFinish) {
+    _updateProgress(objectsLoaded, objectsCount, onUpdate, onFinish) {
         if (onUpdate) {
             onUpdate(Math.round((objectsLoaded / objectsCount) * 100));
         }
         if (objectsLoaded === objectsCount) {
-            this.loading = false;
+            this._loading = false;
             if (onFinish) {
                 onFinish();
             }
@@ -86,59 +68,79 @@ GF.AssetsLoader = class AssetsLoader {
      * @param {number} index 
      * @param {string} assetNames 
      */
-    loadAsset(index, assets, assetNames, onUpdate, onFinish, onError) {
-        if (this.loading === true) {
+    _loadAsset(index, assets, assetNames, onUpdate, onFinish, onError) {
+        if (this._loading === true) {
             if (index === assetNames.length) {
                 return;
             } else {
                 const asset = assets[assetNames[index]];
                 var assetPath = typeof(asset.params) === "string" ? asset.params : (asset.params != null ? asset.params.path : 'NULL');
                 // choose loader
-                const loader = this.loaders[asset.type];
+                const loader = this._loaders[asset.type];
                 if (loader != null) {
                     // load and store asset content
                     loader.load(asset.params, 
                     (content) => {
                         asset.content = content;
                         asset.loaded = true;
-                        this.updateProgress(index+1, assetNames.length, onUpdate, onFinish);
-                        this.loadAsset(index+1, assets, assetNames, onUpdate, onFinish, onError);
+                        this._updateProgress(index+1, assetNames.length, onUpdate, onFinish);
+                        this._loadAsset(index+1, assets, assetNames, onUpdate, onFinish, onError);
                     }, (error) => {
                         if (error && onError) {
                             onError("ERROR :: Loading asset '"+assetPath+"' of type '"+GF.AssetType[asset.type]+"' :: " + error);
                         }
-                        this.updateProgress(index+1, assetNames.length, onUpdate, onFinish);
-                        this.loadAsset(index+1, assets, assetNames, onUpdate, onFinish, onError);
+                        this._updateProgress(index+1, assetNames.length, onUpdate, onFinish);
+                        this._loadAsset(index+1, assets, assetNames, onUpdate, onFinish, onError);
                     });
                 } else {
                     // file not supported
                     if (onError != null) {
                         onError("ERROR :: Loading asset '"+assetPath+"' of type '"+GF.AssetType[asset.type]+"' :: Asset Type not supported!");
                     }
-                    this.updateProgress(index+1, assetNames.length, onUpdate, onFinish);
-                    this.loadAsset(index+1, assets, assetNames, onUpdate, onFinish, onError);
+                    this._updateProgress(index+1, assetNames.length, onUpdate, onFinish);
+                    this._loadAsset(index+1, assets, assetNames, onUpdate, onFinish, onError);
                 }
             }
         }
     }
 
-    //#region public methods
+    //#region API
 
     /**
-     * Is loading
+     * Set a graphics preset
+     * @param {GF.GRAPHICS_PRESET} preset on of the available graphics presets
      */
-    isLoading() {
-        return this.loading;
+    setGraphicsPreset(preset) {
+        this.gameGraphicsPreset = preset;
+        for (const loader in this._loaders) {
+            this._loaders[loader].gameGraphicsPreset = this.gameGraphicsPreset;
+        }
     }
 
     /**
-     * Add assset to load
-     * @param {string} name 
-     * @param {AssetType} type 
+     * Add new custom asset loader 
+     * @param {string} typeName the loader type name
+     * @param {string} loaderClass name of a class that extends GF.FileLoader
+     */
+    addCustomAssetLoader(typeName, loaderClass) {
+        this._loaders[typeName] = eval(`new ${loaderClass}(${typeName})`);
+    }
+
+    /**
+     * If is loading
+     */
+    isLoading() {
+        return this._loading;
+    }
+
+    /**
+     * Add asset to load
+     * @param {string} name the asset name
+     * @param {AssetType} type the asset type
      * @param {string | object} params the path for the file, or a group of params in certain cases
      */
     add(name, type, params) {
-        this.assets[name] = {
+        this._assets[name] = {
             type: type,
             params: params,
             loaded: false,
@@ -147,13 +149,13 @@ GF.AssetsLoader = class AssetsLoader {
     }
 
     /**
-     * Add preloaded assset
-     * @param {string} name 
-     * @param {AssetType} type 
-     * @param {object} content
+     * Add preloaded asset
+     * @param {string} name the asset name
+     * @param {AssetType} type the asset type
+     * @param {object} content the asset
      */
     addPreloaded(name, type, content) {
-        this.assets[name] = {
+        this._assets[name] = {
             type: type,
             params: null,
             loaded: true,
@@ -163,19 +165,19 @@ GF.AssetsLoader = class AssetsLoader {
 
     /**
      * Remove asset
-     * @param {string} name 
+     * @param {string} name the name of the asset to remove
      */
     remove(name) {
-        this.assets[name] = undefined;
+        this._assets[name] = undefined;
     }
 
     /**
-     * Get asset
+     * Get asset by name
      * @param {string} name 
      */
     get(name) {
-        if (this.assets[name] != null && this.assets[name].loaded == true) {
-            return this.assets[name].content;
+        if (this._assets[name] != null && this._assets[name].loaded == true) {
+            return this._assets[name].content;
         } else {
             return null;
         }
@@ -183,20 +185,20 @@ GF.AssetsLoader = class AssetsLoader {
 
     /**
      * Unload asset
-     * @param {string} name 
+     * @param {string} name the name of the asset
      */
     unload(name) {
-        this.assets[name].loaded = false;
-        this.assets[name].content = undefined;
+        this._assets[name].loaded = false;
+        this._assets[name].content = undefined;
     }
 
     /**
      * Unload all assets
      */
     unloadAll() {
-        for (const name in this.assets) {
-            this.assets[name].loaded = false;
-            this.assets[name].content = undefined;
+        for (const name in this._assets) {
+            this._assets[name].loaded = false;
+            this._assets[name].content = undefined;
         }
     }
 
@@ -204,36 +206,39 @@ GF.AssetsLoader = class AssetsLoader {
      * Clear all assets
      */
     clear() {
-        this.assets = {}
+        this._assets = {}
     }
 
     /**
      * Load a single asset
+     * @param {string} name the name of the asset to load
+     * @param {function} onFinish callback when loading is finished
+     * @param {function} onError callback when there is an error in the loading
      */
     load(name, onFinish, onError) {
-        this.loading = true;
-        const asset = this.assets[name];
+        this._loading = true;
+        const asset = this._assets[name];
         if (asset.loaded === true) {
-            this.updateProgress(1, 1, () => {}, onFinish);
+            this._updateProgress(1, 1, () => {}, onFinish);
         } else {
-            this.loadAsset(0, this.assets, [name], null, onFinish, onError);
+            this._loadAsset(0, this._assets, [name], null, onFinish, onError);
         }
     }
 
     /**
-     * Load all assets unloaded
-     * @param {function} onUpdate 
-     * @param {function} onFinish 
-     * @param {function} onError
+     * Load all assets (only the ones that are not loaded yet)
+     * @param {function} onUpdate every time a new asset is loaded this callback is called with the current progress percentage
+     * @param {function} onFinish callback when loading is finished
+     * @param {function} onError callback when there is an error in the loading
      */
     loadAll(onUpdate, onFinish, onError) {
-        this.loading = true;
-        const assetNames = Object.keys(this.assets);
+        this._loading = true;
+        const assetNames = Object.keys(this._assets);
 
         // get assets to load
         const assetNamesToLoad = []
-        for (const name in this.assets) {
-            if (this.assets[name].loaded === false && this.assets[name].content == null) {
+        for (const name in this._assets) {
+            if (this._assets[name].loaded === false && this._assets[name].content == null) {
                 assetNamesToLoad.push(name);
             }
         }
@@ -241,10 +246,10 @@ GF.AssetsLoader = class AssetsLoader {
         // load assets
         if(assetNamesToLoad.length == 0) {
             setTimeout(() => {
-                this.updateProgress(1,1,onUpdate,onFinish);
+                this._updateProgress(1,1,onUpdate,onFinish);
             });
         } else {
-            this.loadAsset(0, this.assets, assetNamesToLoad, onUpdate, onFinish, onError);
+            this._loadAsset(0, this._assets, assetNamesToLoad, onUpdate, onFinish, onError);
         }
     }
 

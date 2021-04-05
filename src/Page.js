@@ -1,13 +1,11 @@
-
-
 /**
- * Base Page
+ * Base UI Page
  */
 GF.Page = class Page {
-
     /**
      * Constructor
-     * @param properties {background: string, style: string, html: string}
+     * @param {{background: string, style: string, html: string}} properties 
+     * @param {GF.GameController} controller
      */
     constructor(properties, controller) {
         this.content = document.createElement("div");
@@ -25,11 +23,11 @@ GF.Page = class Page {
             Line: 4,
         }
 
-        this.canvasShapes = {};
-        this.canvasShapeDrawArray = [];
+        this._canvasShapes = {};
+        this._canvasShapeDrawArray = [];
 
         if (properties) {
-            this.useCanvas = properties.useCanvas;
+            this._useCanvas = properties.useCanvas;
 
             this.content.style.background = properties.background;
 
@@ -39,14 +37,14 @@ GF.Page = class Page {
                 this.addStyle(name, properties.style)
             }
 
-            if (this.useCanvas) {
-                this.canvasHTMLElement = document.createElement("canvas");
-                this.canvasHTMLElement.style.position = "absolute";
-                this.canvasHTMLElement.style.zIndex = "100";
-                this.canvasHTMLElement.width = this.content.offsetWidth;
-                this.canvasHTMLElement.height = this.content.offsetHeight;
-                this.context2D = this.canvasHTMLElement.getContext("2d");
-                this.content.appendChild(this.canvasHTMLElement);
+            if (this._useCanvas) {
+                this._canvasHTMLElement = document.createElement("canvas");
+                this._canvasHTMLElement.style.position = "absolute";
+                this._canvasHTMLElement.style.zIndex = "100";
+                this._canvasHTMLElement.width = this.content.offsetWidth;
+                this._canvasHTMLElement.height = this.content.offsetHeight;
+                this.context2D = this._canvasHTMLElement.getContext("2d");
+                this.content.appendChild(this._canvasHTMLElement);
 
                 this.canvas = {
                     "createShapeImage": this._addImageShape.bind(this),
@@ -58,16 +56,16 @@ GF.Page = class Page {
                 this.content.innerHTML = properties.html;
 
                 var children = this.content.querySelectorAll("[id]");
-                    for (var child of children) {
-                        this[child.id] = child;
+                for (var child of children) {
+                    this[child.id] = child;
 
-                        this._decorateElement(this[child.id]);
-                    }
+                    this._decorateElement(this[child.id]);
+                }
             }
         }
     }
 
-    //#region system
+    //#region internal
 
     /**
      * Decorate element
@@ -99,7 +97,7 @@ GF.Page = class Page {
         this.container = container;
         this.container.innerHTML = "";
         this.container.appendChild(this.content);
-        if (this.useCanvas) {
+        if (this._useCanvas) {
             this.redrawCanvas();
         }
         return this.onOpen(args);
@@ -128,81 +126,10 @@ GF.Page = class Page {
      * @param {number} height 
      */
     _resize(width, height) {
-        if (this.canvasHTMLElement) {
+        if (this._canvasHTMLElement) {
             this.redrawCanvas();
         }
     }
-
-    //#endregion
-
-    //#region protected
-
-    //#region HTML
-
-    /**
-     * Add style to html
-     * @param {string} styleContentText 
-     */
-    addStyle(id, styleContentText) {
-        var formattedId = "page-style-" + id;
-        if (!document.getElementById(formattedId)) {
-            var style = document.createElement('style');
-            style.type = 'text/css';
-            style.innerHTML = styleContentText;
-            style.id = formattedId;
-            document.getElementsByTagName('head')[0].appendChild(style);
-        }
-    }
-
-    /**
-     * Get UI element
-     * @param {string} id 
-     */
-    getUIElement(id) {
-        return this.content.querySelector("#" + id)
-    }
-
-    /**
-     * Add ui element to page content
-     * @param {string} type 
-     * @param {object} initialStyle 
-     */
-    addUIElement(id, type, className, initialStyle, parent) {
-        const element = document.createElement(type);
-        if (parent != null) {
-            parent.appendChild(element);
-        } else {
-            this.content.appendChild(element);
-        }
-
-        this._decorateElement(element);
-
-        if (className) {
-            element.className = className;
-        }
-
-        if (initialStyle) {
-            element.setStyle(initialStyle);
-        }
-
-        if (id != null) {
-            element.id = id;
-        }
-        
-        return element;
-    }
-
-    /**
-     * Remove ui element from page content
-     * @param {Element} element 
-     */
-    removeUIElement(element) {
-        this.content.removeChild(element);
-    }
-
-    //#endregion
-
-    //#region Canvas
 
     /**
      * Sanitize coordinate
@@ -256,7 +183,7 @@ GF.Page = class Page {
      * Update draw array
      */
     _updateDrawArray() {
-        this.canvasShapeDrawArray = this.canvasShapeDrawArray.sort((a, b) => {
+        this._canvasShapeDrawArray = this._canvasShapeDrawArray.sort((a, b) => {
             return a.zIndex > b.zIndex ? 1 : (a.zIndex < b.zIndex ? -1 : 0)
         })
     }
@@ -267,11 +194,11 @@ GF.Page = class Page {
      * @param {any} shape 
      */
     _addShape(id, shape, zIndex = 0) {
-        if (this.canvasShapes[id] == null) {
-            this.canvasShapes[id] = shape;
-            this.canvasShapes[id].zIndex = zIndex;
+        if (this._canvasShapes[id] == null) {
+            this._canvasShapes[id] = shape;
+            this._canvasShapes[id].zIndex = zIndex;
 
-            this.canvasShapeDrawArray.push(this.canvasShapes[id]);
+            this._canvasShapeDrawArray.push(this._canvasShapes[id]);
             this._updateDrawArray();
 
             this.redrawCanvas();
@@ -410,21 +337,21 @@ GF.Page = class Page {
      * @param {string} id 
      */
     _removeShape(id) {
-        const index = this.canvasShapeDrawArray.findIndex(this.canvasShapes[id]);
+        const index = this._canvasShapeDrawArray.findIndex(this._canvasShapes[id]);
         if (index >= 0) {
-            this.canvasShapeDrawArray.splice(index, 1);
+            this._canvasShapeDrawArray.splice(index, 1);
             this._updateDrawArray();
         }
-        this.canvasShapes[id] = undefined;
+        this._canvasShapes[id] = undefined;
     }
 
     /**
      * Remove all shapes
      */
     _removeAllShapes() {
-        this.canvasShapeDrawArray = [];
+        this._canvasShapeDrawArray = [];
         this._updateDrawArray();
-        this.canvasShapes = {};
+        this._canvasShapes = {};
     }
 
     /**
@@ -434,8 +361,8 @@ GF.Page = class Page {
      * @param {any} value
      */
     _editShapeProperty(id, property, value) {
-        if (this.canvasShapes[id]) {
-            this.canvasShapes[id][property] = value;
+        if (this._canvasShapes[id]) {
+            this._canvasShapes[id][property] = value;
             this.redrawCanvas();
         }
     }
@@ -445,8 +372,8 @@ GF.Page = class Page {
      * @param {boolean} visible 
      */
     _setShapeVisible(id, visible) {
-        if (this.canvasShapes[id]) {
-            this.canvasShapes[id].visible = visible;
+        if (this._canvasShapes[id]) {
+            this._canvasShapes[id].visible = visible;
             this.redrawCanvas();
         }
     }
@@ -478,11 +405,69 @@ GF.Page = class Page {
         }
     }
 
+    //#endregion
+
+    //#region API
+
     /**
-     * On canvas draw custom code
-     * (To override if needed)
+     * Add style to html
+     * @param {string} styleContentText 
      */
-    onCanvasDraw() {
+    addStyle(id, styleContentText) {
+        var formattedId = "page-style-" + id;
+        if (!document.getElementById(formattedId)) {
+            var style = document.createElement('style');
+            style.type = 'text/css';
+            style.innerHTML = styleContentText;
+            style.id = formattedId;
+            document.getElementsByTagName('head')[0].appendChild(style);
+        }
+    }
+
+    /**
+     * Get UI element
+     * @param {string} id 
+     */
+    getUIElement(id) {
+        return this.content.querySelector("#" + id)
+    }
+
+    /**
+     * Add ui element to page content
+     * @param {string} type 
+     * @param {object} initialStyle 
+     */
+    addUIElement(id, type, className, initialStyle, parent) {
+        const element = document.createElement(type);
+        if (parent != null) {
+            parent.appendChild(element);
+        } else {
+            this.content.appendChild(element);
+        }
+
+        this._decorateElement(element);
+
+        if (className) {
+            element.className = className;
+        }
+
+        if (initialStyle) {
+            element.setStyle(initialStyle);
+        }
+
+        if (id != null) {
+            element.id = id;
+        }
+        
+        return element;
+    }
+
+    /**
+     * Remove ui element from page content
+     * @param {Element} element 
+     */
+    removeUIElement(element) {
+        this.content.removeChild(element);
     }
 
     /**
@@ -490,87 +475,87 @@ GF.Page = class Page {
      * (automatically called on resize)
      */
     redrawCanvas() {
-        this.canvasHTMLElement.width = this.content.offsetWidth;
-        this.canvasHTMLElement.height = this.content.offsetHeight;
-        this.canvasWidth = this.content.offsetWidth;
-        this.canvasHeight = this.content.offsetHeight;
+        this._canvasHTMLElement.width = this.content.offsetWidth;
+        this._canvasHTMLElement.height = this.content.offsetHeight;
+        this._canvasWidth = this.content.offsetWidth;
+        this._canvasHeight = this.content.offsetHeight;
         
-        this.context2D.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
+        this.context2D.clearRect(0, 0, this._canvasWidth, this._canvasHeight);
 
-        for (var i = 0; i < this.canvasShapeDrawArray.length; i++ ) {
-            if (this.canvasShapeDrawArray[i].visible) {
+        for (var i = 0; i < this._canvasShapeDrawArray.length; i++ ) {
+            if (this._canvasShapeDrawArray[i].visible) {
 
-                this.context2D.globalAlpha = this.canvasShapeDrawArray[i].opacity;
+                this.context2D.globalAlpha = this._canvasShapeDrawArray[i].opacity;
 
-                if (this.canvasShapeDrawArray[i].shadow != null) {
+                if (this._canvasShapeDrawArray[i].shadow != null) {
                     this.context2D.shadowColor = 'rgba(0, 0, 0, 0.75)';
-                    this.context2D.shadowBlur = this.canvasShapeDrawArray[i].shadow;
+                    this.context2D.shadowBlur = this._canvasShapeDrawArray[i].shadow;
                 }
 
-                this.context2D.filter = this.canvasShapeDrawArray[i].filter != null ? this.canvasShapeDrawArray[i].filter : "none";
+                this.context2D.filter = this._canvasShapeDrawArray[i].filter != null ? this._canvasShapeDrawArray[i].filter : "none";
 
-                switch(this.canvasShapeDrawArray[i].type) {
+                switch(this._canvasShapeDrawArray[i].type) {
                     case this._PAGE_CANVAS_SHAPE_TYPE.Image: // image
                     case this._PAGE_CANVAS_SHAPE_TYPE.Square: // square
                         // square
-                        if (this.canvasShapeDrawArray[i].type === this._PAGE_CANVAS_SHAPE_TYPE.Square) {
+                        if (this._canvasShapeDrawArray[i].type === this._PAGE_CANVAS_SHAPE_TYPE.Square) {
                             // process alignment
                             this._processAlignment(
-                                this.canvasShapeDrawArray[i].align,
-                                this.canvasShapeDrawArray[i].x,
-                                this.canvasShapeDrawArray[i].y,
-                                this.canvasShapeDrawArray[i].width,
-                                this.canvasShapeDrawArray[i].height)
+                                this._canvasShapeDrawArray[i].align,
+                                this._canvasShapeDrawArray[i].x,
+                                this._canvasShapeDrawArray[i].y,
+                                this._canvasShapeDrawArray[i].width,
+                                this._canvasShapeDrawArray[i].height)
 
                             // fill
-                            if (this.canvasShapeDrawArray[i].color != null) {
-                                this.context2D.fillStyle = this.canvasShapeDrawArray[i].color;
+                            if (this._canvasShapeDrawArray[i].color != null) {
+                                this.context2D.fillStyle = this._canvasShapeDrawArray[i].color;
                                 this.context2D.fillRect(
-                                    (this.currentDrawShapeX / 100) * this.canvasWidth,
-                                    (this.currentDrawShapeY / 100) * this.canvasHeight,
-                                    (this.canvasShapeDrawArray[i].width / 100) * this.canvasWidth,
-                                    (this.canvasShapeDrawArray[i].height / 100) * this.canvasHeight
+                                    (this.currentDrawShapeX / 100) * this._canvasWidth,
+                                    (this.currentDrawShapeY / 100) * this._canvasHeight,
+                                    (this._canvasShapeDrawArray[i].width / 100) * this._canvasWidth,
+                                    (this._canvasShapeDrawArray[i].height / 100) * this._canvasHeight
                                 );
                             }
 
                             // stroke
-                            if (this.canvasShapeDrawArray[i].borderColor != null) {
-                                this.context2D.strokeStyle = this.canvasShapeDrawArray[i].borderColor;
-                                this.context2D.lineWidth = (this.canvasShapeDrawArray[i].borderWidth / 100) * this.canvasHeight;
+                            if (this._canvasShapeDrawArray[i].borderColor != null) {
+                                this.context2D.strokeStyle = this._canvasShapeDrawArray[i].borderColor;
+                                this.context2D.lineWidth = (this._canvasShapeDrawArray[i].borderWidth / 100) * this._canvasHeight;
                                 this.context2D.strokeRect(
-                                    (this.currentDrawShapeX / 100) * this.canvasWidth,
-                                    (this.currentDrawShapeY / 100) * this.canvasHeight,
-                                    (this.canvasShapeDrawArray[i].width / 100) * this.canvasWidth,
-                                    (this.canvasShapeDrawArray[i].height / 100) * this.canvasHeight
+                                    (this.currentDrawShapeX / 100) * this._canvasWidth,
+                                    (this.currentDrawShapeY / 100) * this._canvasHeight,
+                                    (this._canvasShapeDrawArray[i].width / 100) * this._canvasWidth,
+                                    (this._canvasShapeDrawArray[i].height / 100) * this._canvasHeight
                                 );
                             }
                         
                         // image
                         } else {
                             // width & height specified
-                            if (this.canvasShapeDrawArray[i].width != null && this.canvasShapeDrawArray[i].height != null) {
-                                this.imgWidth = this.canvasShapeDrawArray[i].width;
-                                this.imgHeight = this.canvasShapeDrawArray[i].height;
+                            if (this._canvasShapeDrawArray[i].width != null && this._canvasShapeDrawArray[i].height != null) {
+                                this.imgWidth = this._canvasShapeDrawArray[i].width;
+                                this.imgHeight = this._canvasShapeDrawArray[i].height;
                             // only width specified
-                            } else if (this.canvasShapeDrawArray[i].height == null) {
-                                this.imgWidth = this.canvasShapeDrawArray[i].width;
-                                this.imgHeight = this.imgWidth * this.canvasShapeDrawArray[i].aspectRatio;
-                                this.canvasDimension = this.canvasWidth;
+                            } else if (this._canvasShapeDrawArray[i].height == null) {
+                                this.imgWidth = this._canvasShapeDrawArray[i].width;
+                                this.imgHeight = this.imgWidth * this._canvasShapeDrawArray[i].aspectRatio;
+                                this.canvasDimension = this._canvasWidth;
                             // only height specified
-                            } else if (this.canvasShapeDrawArray[i].width == null) {
-                                this.imgHeight = this.canvasShapeDrawArray[i].height;
-                                this.imgWidth = this.imgHeight / this.canvasShapeDrawArray[i].aspectRatio;
-                                this.canvasDimension = this.canvasHeight;
+                            } else if (this._canvasShapeDrawArray[i].width == null) {
+                                this.imgHeight = this._canvasShapeDrawArray[i].height;
+                                this.imgWidth = this.imgHeight / this._canvasShapeDrawArray[i].aspectRatio;
+                                this.canvasDimension = this._canvasHeight;
                             }
 
-                            this.imgWidth = (this.imgWidth / 100) *  (this.canvasDimension != null ? this.canvasDimension : this.canvasWidth);
-                            this.imgHeight = (this.imgHeight / 100) * (this.canvasDimension != null ? this.canvasDimension : this.canvasHeight);
+                            this.imgWidth = (this.imgWidth / 100) *  (this.canvasDimension != null ? this.canvasDimension : this._canvasWidth);
+                            this.imgHeight = (this.imgHeight / 100) * (this.canvasDimension != null ? this.canvasDimension : this._canvasHeight);
 
                             // process alignment
                             this._processAlignment(
-                                this.canvasShapeDrawArray[i].align,
-                                (this.canvasShapeDrawArray[i].x / 100) * this.canvasWidth,
-                                (this.canvasShapeDrawArray[i].y / 100) * this.canvasHeight,
+                                this._canvasShapeDrawArray[i].align,
+                                (this._canvasShapeDrawArray[i].x / 100) * this._canvasWidth,
+                                (this._canvasShapeDrawArray[i].y / 100) * this._canvasHeight,
                                 this.imgWidth,
                                 this.imgHeight);
 
@@ -578,7 +563,7 @@ GF.Page = class Page {
 
                             // draw
                             this.context2D.drawImage(
-                                this.canvasShapeDrawArray[i].img,
+                                this._canvasShapeDrawArray[i].img,
                                 this.currentDrawShapeX,
                                 this.currentDrawShapeY,
                                 this.imgWidth,
@@ -587,24 +572,24 @@ GF.Page = class Page {
                         }
                         break;
                     case this._PAGE_CANVAS_SHAPE_TYPE.Text: // text
-                        this.context2D.fillStyle = this.canvasShapeDrawArray[i].color;
-                        this.context2D.textBaseline = this.canvasShapeDrawArray[i].baseline;
-                        this.context2D.textAlign = this.canvasShapeDrawArray[i].align;
-                        this.context2D.font = this.canvasShapeDrawArray[i].style + " " + ((this.canvasShapeDrawArray[i].size / 100) * this.canvasHeight) + "px " + this.canvasShapeDrawArray[i].font;
+                        this.context2D.fillStyle = this._canvasShapeDrawArray[i].color;
+                        this.context2D.textBaseline = this._canvasShapeDrawArray[i].baseline;
+                        this.context2D.textAlign = this._canvasShapeDrawArray[i].align;
+                        this.context2D.font = this._canvasShapeDrawArray[i].style + " " + ((this._canvasShapeDrawArray[i].size / 100) * this._canvasHeight) + "px " + this._canvasShapeDrawArray[i].font;
                         this.context2D.fillText(
-                            this.canvasShapeDrawArray[i].text,
-                            (this.canvasShapeDrawArray[i].x / 100) * this.canvasWidth,
-                            (this.canvasShapeDrawArray[i].y / 100) * this.canvasHeight
+                            this._canvasShapeDrawArray[i].text,
+                            (this._canvasShapeDrawArray[i].x / 100) * this._canvasWidth,
+                            (this._canvasShapeDrawArray[i].y / 100) * this._canvasHeight
                         );
                         break;
                     case this._PAGE_CANVAS_SHAPE_TYPE.Line: // line
-                        this.context2D.strokeStyle = this.canvasShapeDrawArray[i].color;
-                        this.context2D.lineWidth = (this.canvasShapeDrawArray[i].width / 100) * this.canvasHeight;
+                        this.context2D.strokeStyle = this._canvasShapeDrawArray[i].color;
+                        this.context2D.lineWidth = (this._canvasShapeDrawArray[i].width / 100) * this._canvasHeight;
                         this.context2D.strokeLine(
-                            (this.canvasShapeDrawArray[i].x1 / 100) * this.canvasWidth,
-                            (this.canvasShapeDrawArray[i].y1 / 100) * this.canvasHeight,
-                            (this.canvasShapeDrawArray[i].x2 / 100) * this.canvasWidth,
-                            (this.canvasShapeDrawArray[i].y2 / 100) * this.canvasHeight
+                            (this._canvasShapeDrawArray[i].x1 / 100) * this._canvasWidth,
+                            (this._canvasShapeDrawArray[i].y1 / 100) * this._canvasHeight,
+                            (this._canvasShapeDrawArray[i].x2 / 100) * this._canvasWidth,
+                            (this._canvasShapeDrawArray[i].y2 / 100) * this._canvasHeight
                         );
                         break;
                 }
@@ -620,15 +605,35 @@ GF.Page = class Page {
         // custom draw
         this.onCanvasDraw();
     }
-
-    //#region 
     
     //#endregion
 
     //#region abstract
 
+    /**
+     * On canvas draw custom code
+     * (To override if needed)
+     */
+    onCanvasDraw() {
+    }
+
+    /**
+     * On page open
+     * @param {any} args 
+     * @returns 
+     */
     onOpen(args) {return Promise.resolve()}
+
+    /**
+     * On page close
+     * @returns 
+     */
     onClose() {return Promise.resolve()}
+
+    /**
+     * On page update
+     * @param {number} delta 
+     */
     onUpdate(delta) {}
 
     //#endregion

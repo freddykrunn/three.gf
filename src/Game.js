@@ -1,7 +1,7 @@
 /**
  * Camera type
  */
- GF.CAMERA_TYPE = {
+GF.CAMERA_TYPE = {
     PERSPECTIVE: 0,
     ORTHO: 1
 }
@@ -54,68 +54,96 @@ const MAX_MS_PER_UPDATE = 1000 / MIN_FPS;
  * Game
  */
 GF.Game = class Game extends GF.StateMachine {
+    /**
+     * Game
+     * @param {HTMLCanvasElement} canvas the game canvas
+     * @param {GF.AssetsLoader} loader the assets loader
+     * @param {any} params the game params
+     * @param {function} initCallback on game init callback
+     * @param {function} updateCallback on game init callback
+     * @param {function} destroyCallback on game init callback
+     * @param {function} tickUpdateCallback on game tick callback 
+     * @param {function} pointerLockChangeCallback on pointer lock callback
+     */
     constructor(canvas, loader, params, initCallback, updateCallback, destroyCallback, tickUpdateCallback, pointerLockChangeCallback) {
         super();
-        this.canvas = canvas;
-        var width = this.canvas.width * 0.5;
-        var height = this.canvas.height * 0.5;
+        // private properties
+        this._canvas = canvas;
+        var width = this._canvas.width * 0.5;
+        var height = this._canvas.height * 0.5;
 
-        this.initCallback = initCallback;
-        this.updateCallback = updateCallback;
-        this.destroyCallback = destroyCallback;
-        this.tickUpdateCallback = tickUpdateCallback;
-        this.pointerLockChangeCallback = pointerLockChangeCallback;
+        this._initCallback = initCallback;
+        this._updateCallback = updateCallback;
+        this._destroyCallback = destroyCallback;
+        this._tickUpdateCallback = tickUpdateCallback;
+        this._pointerLockChangeCallback = pointerLockChangeCallback;
 
-        this.usePointerLock = params != null && params.usePointerLock != null ? params.usePointerLock : false;
-        this.useMouseRaycasting = params != null && params.useMouseRaycasting != null ? params.useMouseRaycasting : false;
-        this.useRenderLayers = false;
-        this.useOutlineEffect = params != null && params.useOutlineEffect != null ? params.useOutlineEffect : false;
+        this._usePointerLock = params != null && params.usePointerLock != null ? params.usePointerLock : false;
+        this._useMouseRaycasting = params != null && params.useMouseRaycasting != null ? params.useMouseRaycasting : false;
+        this._useRenderLayers = params != null && params.useRenderLayers != null ? params.useRenderLayers : false;
+        this._useOutlineEffect = params != null && params.useOutlineEffect != null ? params.useOutlineEffect : false;
 
-        // assets loader
-        this.loader = loader;
-
-        this.aspectRatio = params.aspectRatio;
-        this.graphicsPreset = params.graphicsPreset;
-        if (this.graphicsPreset === GF.GRAPHICS_PRESET.PS1_Style) {
+        this._aspectRatio = params.aspectRatio;
+        this._graphicsPreset = params.graphicsPreset;
+        if (this._graphicsPreset === GF.GRAPHICS_PRESET.PS1_Style) {
             params.antialias = false;
             params.precision = "lowp";
             params.shadows = false;
         }
 
+        // game speed
+        this._speed = 1;
+
+        // containers
+        this._objects = {};
+        this._objectsArray = [];
+        this._objectsToUpdateArray = [];
+        this._intersectableObjects = [];
+        this._rayCollisionObjects = [];
+        this._variables = {};
+        this._variablesChangeEvents = {};
+        this._gameEvents = {};
+
+        // raycaster variables
+        this._mouseCoords = new THREE.Vector2();
+
+        // animate function
+        this._animateFunction = this._animate.bind(this);
+
         // renderer
-        this.renderer = new THREE.WebGLRenderer({
+        this._renderer = new THREE.WebGLRenderer({
             canvas: canvas,
             alpha: true,
             antialias: params.antialias != null ? params.antialias : false,
             powerReference: params.powerReference != null ? params.powerReference : "default",
             precision: params.precision != null ? params.precision : "highp",
         });
-        this.renderer.setPixelRatio( window.devicePixelRatio );
-        this.renderer.shadowMap.enabled = params != null && params.shadows != null ? params.shadows : false ;
-        this.renderer.shadowMap.type = params.shadowMapType != null ? params.shadowMapType : THREE.BasicShadowMap;
-        this.renderer.autoClear = true;
-        this.renderer.setClearColor(0xffffff, 0);
+        this._renderer.setPixelRatio( window.devicePixelRatio );
+        this._renderer.shadowMap.enabled = params != null && params.shadows != null ? params.shadows : false ;
+        this._renderer.shadowMap.type = params.shadowMapType != null ? params.shadowMapType : THREE.BasicShadowMap;
+        this._renderer.autoClear = true;
+        this._renderer.setClearColor(0xffffff, 0);
 
-        if (this.useOutlineEffect) {
-            this.outlineEffect = new THREE.OutlineEffect(this.renderer);
+        if (this._useOutlineEffect) {
+            this._outlineEffect = new THREE.OutlineEffect(this._renderer);
         }
 
-        this.resolutionRatio = params != null && params.resolutionRatio != null ? params.resolutionRatio : 1;
-        this.updateRenderSize(width, height);
-        
+        this._resolutionRatio = params != null && params.resolutionRatio != null ? params.resolutionRatio : 1;
+        this._updateRenderSize(width, height);
 
+        // external access properties
+        
         // scene
         this.scene = new THREE.Scene();
-        this.altScene = new THREE.Scene();
 
         // camera
         if (params != null && params.camera != null) {
-            this.cameraType = params.camera.type != null ? params.camera.type : GF.CAMERA_TYPE.PERSPECTIVE;
+            this._cameraType = params.camera.type != null ? params.camera.type : GF.CAMERA_TYPE.PERSPECTIVE;
             var fov = params.camera.fov != null ? params.camera.fov : GF.DEFAULT_CAMERA_FOV;
             var near = params.camera.near != null ? params.camera.near : GF.DEFAULT_CAMERA_NEAR;
             var far = params.camera.far != null ? params.camera.far : GF.DEFAULT_CAMERA_FAR;
 
-            if (this.cameraType === GF.CAMERA_TYPE.PERSPECTIVE) {
+            if (this._cameraType === GF.CAMERA_TYPE.PERSPECTIVE) {
                 this.camera = new THREE.PerspectiveCamera( fov, width / height, near, far );
             } else {
                 this.camera = new THREE.OrthographicCamera( width / - 2, width / 2, height / 2, height / - 2, near, far );
@@ -124,75 +152,58 @@ GF.Game = class Game extends GF.StateMachine {
             this.viewFarPlane = far;
         } else {
             this.camera = new THREE.PerspectiveCamera( GF.DEFAULT_CAMERA_FOV, width / height, GF.DEFAULT_CAMERA_NEAR, GF.DEFAULT_CAMERA_FAR);
-            this.cameraType = GF.CAMERA_TYPE.PERSPECTIVE;
+            this._cameraType = GF.CAMERA_TYPE.PERSPECTIVE;
         }
-
-        // default camera position and target
         this.camera.position.set(0, 0, 0);
         this.camera.lookAt(new THREE.Vector3(0, 0, 1));
 
-        // event manager
+        // camera shaker
+        this._cameraShaker = new GF.CameraShaker(this.camera);
+
+        // managers
+        this.loader = loader;
         this.eventManager = new GF.GameEventManager();
         this.inputManager = new GF.GameInputManager(this);
         this.collisionManager = new GF.CollisionManager(this);
         this.animationManager = new GF.GameAnimationManager(this.eventManager, this.camera);
 
-        // containers
-        this.objects = {};
-        this.objectsArray = [];
-        this.objectsToUpdateArray = [];
-        this.intersectableObjects = [];
-        this.rayCollisionObjects = [];
-        this.variables = {};
-        this.variablesChangeEvents = {};
-        this.gameEvents = {};
-
-        // raycaster variables
-        this.mouseCoords = new THREE.Vector2();
-
-        // game speed
-        this.speed = 1;
-
-        this.screenShaker = ScreenShake();
-
-        this.animateFunction = this.animate.bind(this);
-    }
-
-    /**
-     * Update render size
-     */
-    updateRenderSize(width, height) {
-        var w, h;
-        if (this.graphicsPreset === GF.GRAPHICS_PRESET.PS1_Style) {
-            w = GF.GRAPHICS_PRESET_PARAMS[GF.GRAPHICS_PRESET.PS1_Style].resolution.w;
-            h = GF.GRAPHICS_PRESET_PARAMS[GF.GRAPHICS_PRESET.PS1_Style].resolution.h;
-        } else {
-            w = width * this.resolutionRatio;
-            h = height * this.resolutionRatio;
-        }
-        this.renderer.setSize( w, h  );
-        this.renderer.domElement.style.width = width + 'px';
-        this.renderer.domElement.style.height = height  + 'px';
-
-        this.rendererSize = new THREE.Vector2();
-        this.renderer.getSize(this.rendererSize);
+        // pointer lock 
+        this.pointerLockEnabled = this._usePointerLock;
     }
 
     //#region Abstract
 
+    /**
+     * On init
+     */
     onInit(){
         this._tickDeltaCount = 0;
     }
+
+    /**
+     * On update
+     */
     onUpdate(delta){
         super.onUpdate(delta);
     }
+
+    /**
+     * On destroy
+     */
     onDestroy(){
     }
+
+    /**
+     * On pointer lock change
+     */
     onPointerLockChange(locked) {}
 
+    /**
+     * On tick
+     */
     onTick() {
-        if (this.tickUpdateCallback) {
-            this.tickUpdateCallback();
+        if (this._tickUpdateCallback) {
+            this._tickUpdateCallback();
         }
     }
 
@@ -204,10 +215,10 @@ GF.Game = class Game extends GF.StateMachine {
      * Set resolution ratio
      * @param {*} ratio 
      */
-     setResolutionRatio(ratio) {
-        this.resolutionRatio = ratio != null ? ratio : 1;
-        if (this.rendererSize != null) {
-            this.updateRenderSize(this.renderer.domElement.offsetWidth, this.renderer.domElement.offsetHeight);
+    setResolutionRatio(ratio) {
+        this._resolutionRatio = ratio != null ? ratio : 1;
+        if (this._rendererSize != null) {
+            this._updateRenderSize(this._renderer.domElement.offsetWidth, this._renderer.domElement.offsetHeight);
         }
     }
 
@@ -216,23 +227,25 @@ GF.Game = class Game extends GF.StateMachine {
      * @param {boolean} enable 
      */
     enableShadowsAutoUpdate(enable) {
-        this.renderer.shadowMap.autoUpdate = enable;
-        this.renderer.shadowMap.needsUpdate = true;
+        this._renderer.shadowMap.autoUpdate = enable;
+        this._renderer.shadowMap.needsUpdate = true;
     }
 
     /**
      * Update shadow maps
      */
      updateShadowMaps() {
-        this.renderer.shadowMap.needsUpdate = true;
+        this._renderer.shadowMap.needsUpdate = true;
     }
 
     /**
-     * On game canvas container is resized
+     * When game canvas container is resized
+     * @param {number} width the new width
+     * @param {number} height the new height
      */
     onContainerResize(width, height) {
         // update the camera
-        if (this.cameraType === GF.CAMERA_TYPE.PERSPECTIVE) {
+        if (this._cameraType === GF.CAMERA_TYPE.PERSPECTIVE) {
             this.camera.aspect = width / height;
         } else {
             this.camera.left = -width / 2;
@@ -242,14 +255,32 @@ GF.Game = class Game extends GF.StateMachine {
         }
         this.camera.updateProjectionMatrix();
         // notify the renderer of the size change
-        this.updateRenderSize(width, height);
+        this._updateRenderSize(width, height);
     }
 
     /**
      * Get size
      */
     getCanvasDimensions() {
-        return this.renderer.domElement.getBoundingClientRect();
+        return this._renderer.domElement.getBoundingClientRect();
+    }
+
+    /**
+     * Document click
+     */
+    requestPointerLock() {
+        if (this._usePointerLock && this.pointerLockEnabled) {
+            document.body.requestPointerLock();
+        }
+    }
+    
+    /**
+     * Cancel pointer lock
+     */
+    cancelPointerLock() {
+        if (this.pointerLockEnabled) {
+            document.exitPointerLock();
+        }
     }
 
     //#region Effects
@@ -259,7 +290,7 @@ GF.Game = class Game extends GF.StateMachine {
      * @param {number} speed 
      */
     setSpeed(speed) {
-        this.speed = speed == null ? 1 : speed;
+        this._speed = speed == null ? 1 : speed;
     }
 
     /**
@@ -269,22 +300,25 @@ GF.Game = class Game extends GF.StateMachine {
     applyPostProcessing(filterValue) {
         // predefined
         if (filterValue === GF.POST_PROCESSING_FILTER.Blur) {
-            this.canvas.style.filter = "blur(10px) brightness(0.8)"
+            this._canvas.style.filter = "blur(10px) brightness(0.8)"
         } else if (filterValue === GF.POST_PROCESSING_FILTER.Darken) {
-            this.canvas.style.filter = "brightness(0.5)"
+            this._canvas.style.filter = "brightness(0.5)"
         } else if (filterValue === GF.POST_PROCESSING_FILTER.GrayScale) {
-            this.canvas.style.filter = "grayscale(1)"
+            this._canvas.style.filter = "grayscale(1)"
         } else {
-            this.canvas.style.filter = filterValue;
+            this._canvas.style.filter = filterValue;
         }
     }
 
     /**
      * Shake camera
-     * @param {number} duration 
+     * @param {number} type animation type (Eg: THREEx.CameraShaker.WAVE)
+     * @param {THREE.Vector3} vector animation direction vector 
+     * @param {number} amount amount of shake
+     * @param {number} duration animation duration in ms
      */
-    shakeCamera(vector, duration) {
-        this.screenShaker.shake(this.camera, vector, duration);
+    shakeCamera(type, vector, amount, duration) {
+        this._cameraShaker.shake(type, vector, amount, duration);
     }
 
     //#endregion
@@ -295,9 +329,9 @@ GF.Game = class Game extends GF.StateMachine {
      * @param {any} args arguments
      */
     fireEvent(name, args) {
-        if (this.gameEvents[name] != null && this.gameEvents[name].subscriptions != null) {
-            for (const subscription in this.gameEvents[name].subscriptions) {
-                this.gameEvents[name].subscriptions[subscription](args);
+        if (this._gameEvents[name] != null && this._gameEvents[name].subscriptions != null) {
+            for (const subscription in this._gameEvents[name].subscriptions) {
+                this._gameEvents[name].subscriptions[subscription](args);
             }
         }
     }
@@ -309,24 +343,24 @@ GF.Game = class Game extends GF.StateMachine {
      * @return subscription
      */
     onEvent(name, callback) {
-        if (this.gameEvents[name] == null) {
-            this.gameEvents[name] = {
+        if (this._gameEvents[name] == null) {
+            this._gameEvents[name] = {
                 subscriptions: {}
             };
         }
 
         const newSubscription = GF.Utils.uniqueId("GameEventSubscription_");
-        this.gameEvents[name].subscriptions[newSubscription] = callback;
+        this._gameEvents[name].subscriptions[newSubscription] = callback;
     }
 
     /**
-     * Setop listening to game event 
+     * Stop listening to game event 
      * @param {string} name event name
      * @param {string} subscription the subscription
      */
     offEvent(name, subscription) {
-        if (this.gameEvents[name] != null && this.gameEvents[name].subscriptions != null) {
-            delete this.gameEvents[name].subscriptions[subscription];
+        if (this._gameEvents[name] != null && this._gameEvents[name].subscriptions != null) {
+            delete this._gameEvents[name].subscriptions[subscription];
         }
     }
 
@@ -336,7 +370,7 @@ GF.Game = class Game extends GF.StateMachine {
      * @param {any} value the new value
      */
     setVariable(name, value) {
-        this.variables[name] = value;
+        this._variables[name] = value;
         this.variableChanged(name);
     }
 
@@ -346,7 +380,7 @@ GF.Game = class Game extends GF.StateMachine {
      * @return value
      */
     getVariable(name) {
-        return this.variables[name];
+        return this._variables[name];
     }
 
     /**
@@ -373,9 +407,9 @@ GF.Game = class Game extends GF.StateMachine {
      * @param {string} name event name
      */
     variableChanged(name) {
-        if (this.variablesChangeEvents[name] != null && this.variablesChangeEvents[name].subscriptions != null) {
-            for (const subscription in this.variablesChangeEvents[name].subscriptions) {
-                this.variablesChangeEvents[name].subscriptions[subscription](this.variables[name]);
+        if (this._variablesChangeEvents[name] != null && this._variablesChangeEvents[name].subscriptions != null) {
+            for (const subscription in this._variablesChangeEvents[name].subscriptions) {
+                this._variablesChangeEvents[name].subscriptions[subscription](this._variables[name]);
             }
         }
     }
@@ -387,14 +421,14 @@ GF.Game = class Game extends GF.StateMachine {
      * @return subscription
      */
     onVariableChange(name, callback) {
-        if (this.variablesChangeEvents[name] == null) {
-            this.variablesChangeEvents[name] = {
+        if (this._variablesChangeEvents[name] == null) {
+            this._variablesChangeEvents[name] = {
                 subscriptions: {}
             };
         }
 
         const newSubscription = GF.Utils.uniqueId("GameVariableChangeSubscription_");
-        this.variablesChangeEvents[name].subscriptions[newSubscription] = callback;
+        this._variablesChangeEvents[name].subscriptions[newSubscription] = callback;
         return newSubscription;
     }
 
@@ -404,8 +438,8 @@ GF.Game = class Game extends GF.StateMachine {
      * @param {string} subscription the subscription
      */
     offVariableChange(name, subscription) {
-        if (this.variablesChangeEvents[name] != null) {
-            this.variablesChangeEvents[name].subscriptions[subscription] = undefined;
+        if (this._variablesChangeEvents[name] != null) {
+            this._variablesChangeEvents[name].subscriptions[subscription] = undefined;
         }
     }
 
@@ -418,14 +452,14 @@ GF.Game = class Game extends GF.StateMachine {
             if (object.object3D.children != null && object.object3D.children.length > 0) {
                 for (const child of object.object3D.children) {
                     child.gameObject = object;
-                    this.intersectableObjects.push(child);
+                    this._intersectableObjects.push(child);
                 }
             } else {
                 object.object3D.gameObject = object;
-                this.intersectableObjects.push(object.object3D);
+                this._intersectableObjects.push(object.object3D);
             }
         } else {
-            this.intersectableObjects.push(object);
+            this._intersectableObjects.push(object);
         }
     }
 
@@ -438,21 +472,21 @@ GF.Game = class Game extends GF.StateMachine {
             let index;    
             if (object.object3D.children != null && object.object3D.children.length > 0) {
                 for (const child of object.object3D.children) {
-                    index = this.intersectableObjects.indexOf(child);
+                    index = this._intersectableObjects.indexOf(child);
                     if (index >= 0) {
-                        this.intersectableObjects.splice(index, 1);
+                        this._intersectableObjects.splice(index, 1);
                     }
                 }
             } else {
-                index = this.intersectableObjects.indexOf(object.object3D);
+                index = this._intersectableObjects.indexOf(object.object3D);
                 if (index >= 0) {
-                    this.intersectableObjects.splice(index, 1);
+                    this._intersectableObjects.splice(index, 1);
                 }
             }
         } else  {
-            index = this.intersectableObjects.indexOf(object);
+            index = this._intersectableObjects.indexOf(object);
                 if (index >= 0) {
-                    this.intersectableObjects.splice(index, 1);
+                    this._intersectableObjects.splice(index, 1);
                 }
         }
     }
@@ -484,18 +518,18 @@ GF.Game = class Game extends GF.StateMachine {
         if (id == null) {
             id = GF.Utils.uniqueId("GameObject_");
         }
-        this.objects[id] = object;
+        this._objects[id] = object;
 
-        if (this.objectsArray == null) {
-            this.objectsArray = [];
+        if (this._objectsArray == null) {
+            this._objectsArray = [];
         }
-        this.objectsArray.push(object);
+        this._objectsArray.push(object);
 
         if (!object._noUpdate) {
-            if (this.objectsToUpdateArray == null) {
-                this.objectsToUpdateArray = [];
+            if (this._objectsToUpdateArray == null) {
+                this._objectsToUpdateArray = [];
             }
-            this.objectsToUpdateArray.push(object);
+            this._objectsToUpdateArray.push(object);
         }
 
         return id;
@@ -508,10 +542,10 @@ GF.Game = class Game extends GF.StateMachine {
      */
     addToScene(object, affectRayCollision) {
         if (affectRayCollision) {
-            if (this.rayCollisionObjects == null) {
-                this.rayCollisionObjects = [];
+            if (this._rayCollisionObjects == null) {
+                this._rayCollisionObjects = [];
             }
-            this.rayCollisionObjects.push(object);
+            this._rayCollisionObjects.push(object);
         }
         this.scene.add(object);
     }
@@ -522,10 +556,10 @@ GF.Game = class Game extends GF.StateMachine {
      */
     removeFromScene(object) {
         this.scene.remove(object);
-        if (this.rayCollisionObjects != null) {
-            var index = this.rayCollisionObjects.indexOf(object);
+        if (this._rayCollisionObjects != null) {
+            var index = this._rayCollisionObjects.indexOf(object);
             if (index >= 0) {
-                this.rayCollisionObjects.splice(index, 1);
+                this._rayCollisionObjects.splice(index, 1);
             }
         }
     }
@@ -535,25 +569,25 @@ GF.Game = class Game extends GF.StateMachine {
      * @param {string} id 
      */
     removeObject(id, destroyObject = true) {
-        const object = this.objects[id];
+        const object = this._objects[id];
         if (object != null) {
             if (destroyObject) {
                 object._destroy();
             }
-            delete this.objects[id];
+            delete this._objects[id];
 
-            if (this.objectsArray != null) {
-                var i = this.objectsArray.findIndex(o => o === object);
+            if (this._objectsArray != null) {
+                var i = this._objectsArray.findIndex(o => o === object);
                 if (i >= 0) {
-                    this.objectsArray.splice(i, 1);
+                    this._objectsArray.splice(i, 1);
                 }
             }
     
             if (!object._noUpdate) {
-                if (this.objectsToUpdateArray != null) {
-                    var i = this.objectsToUpdateArray.findIndex(o => o === object);
+                if (this._objectsToUpdateArray != null) {
+                    var i = this._objectsToUpdateArray.findIndex(o => o === object);
                     if (i >= 0) {
-                        this.objectsToUpdateArray.splice(i, 1);
+                        this._objectsToUpdateArray.splice(i, 1);
                     }
                 }
             }
@@ -564,27 +598,27 @@ GF.Game = class Game extends GF.StateMachine {
      * Remove all GameObjects from the game
      */
     removeAllObjects() {
-        for (const object in this.objects) {
-            this.objects[object]._destroy();
-            delete this.objects[object];
+        for (const object in this._objects) {
+            this._objects[object]._destroy();
+            delete this._objects[object];
         }
-        this.objects = {};
-        this.objectsArray = [];
-        this.objectsToUpdateArray = [];
+        this._objects = {};
+        this._objectsArray = [];
+        this._objectsToUpdateArray = [];
     }
 
     /**
      * Get object
      */
     getObject(objectId) {
-        return this.objects[objectId];
+        return this._objects[objectId];
     }
 
     /**
      * Get all objects
      */
     getObjects() {
-        return this.objectsArray;
+        return this._objectsArray;
     }
 
     /**
@@ -659,7 +693,7 @@ GF.Game = class Game extends GF.StateMachine {
     start(gamePage) {
         if (!this.initialized) {
             this.gamePage = gamePage;
-            this.init();
+            this._init();
             this.resume();
             this.initialized = true;
         }
@@ -671,9 +705,9 @@ GF.Game = class Game extends GF.StateMachine {
     stop() {
         if (this.initialized) {
         this.pause();
-        this.renderer.clear(true, true, true);
-        this.renderer.dispose();
-        this.destroy();
+        this._renderer.clear(true, true, true);
+        this._renderer.dispose();
+        this._destroy();
         this.initialized = false;
         }
     }
@@ -686,7 +720,7 @@ GF.Game = class Game extends GF.StateMachine {
             this.currentTime = new Date().valueOf();
             this.lag = 0;
             this.running = true;
-            this.animate();
+            this._animateFunction();
         }
     }
 
@@ -704,35 +738,55 @@ GF.Game = class Game extends GF.StateMachine {
     //#region Internal
 
     /**
+     * Update render size
+     */
+    _updateRenderSize(width, height) {
+        var w, h;
+        if (this._graphicsPreset === GF.GRAPHICS_PRESET.PS1_Style) {
+            w = GF.GRAPHICS_PRESET_PARAMS[GF.GRAPHICS_PRESET.PS1_Style].resolution.w;
+            h = GF.GRAPHICS_PRESET_PARAMS[GF.GRAPHICS_PRESET.PS1_Style].resolution.h;
+        } else {
+            w = width * this._resolutionRatio;
+            h = height * this._resolutionRatio;
+        }
+        this._renderer.setSize( w, h  );
+        this._renderer.domElement.style.width = width + 'px';
+        this._renderer.domElement.style.height = height  + 'px';
+
+        this._rendererSize = new THREE.Vector2();
+        this._renderer.getSize(this._rendererSize);
+    }
+
+    /**
      * init
      */
-    init() {
+    _init() {
         this.eventManager._init();
         this.inputManager._init();
 
         this.onInit();
-        if (this.initCallback) {
-            this.initCallback();
+        if (this._initCallback) {
+            this._initCallback();
         }
 
-        for (var i = 0; i < this.objectsArray.length; i++) {
-            this.objectsArray[i]._init(this.scene, this.camera, this);
+        for (var i = 0; i < this._objectsArray.length; i++) {
+            this._objectsArray[i]._init(this.scene, this.camera, this);
         }
 
-        if (this.usePointerLock) {
-            this.documentClickCallback = this.documentClick.bind(this);
-            this.pointerlockChangeCallback = this.pointerlockChange.bind(this);
+        if (this._usePointerLock) {
+            this.documentClickCallback = this.requestPointerLock.bind(this);
+            this._pointerLockChangeCallback = this._pointerlockChange.bind(this);
             document.body.addEventListener("click", this.documentClickCallback);
-            document.addEventListener('pointerlockchange', this.pointerlockChangeCallback, false);
+            document.addEventListener('pointerlockchange', this._pointerLockChangeCallback, false);
 
             setTimeout(() => {
-                this.documentClick();
+                this.requestPointerLock();
             })
         }
 
         // raycaster
-        if (this.useMouseRaycasting) {
-            this.mouseMoveCallback = this.onMouseMove.bind(this);
+        if (this._useMouseRaycasting) {
+            this.mouseMoveCallback = this._onMouseMove.bind(this);
             document.addEventListener('mousemove', this.mouseMoveCallback, false);
         }
     }
@@ -740,51 +794,51 @@ GF.Game = class Game extends GF.StateMachine {
     /**
      * animate
      */
-    animate() {
+    _animate() {
         if (this.running === true) {
             // update
             this.newTime = new Date().valueOf();
-            this.update(Math.min(this.newTime - this.currentTime, MAX_MS_PER_UPDATE) * this.speed);
+            this._update(Math.min(this.newTime - this.currentTime, MAX_MS_PER_UPDATE) * this._speed);
             this.currentTime = this.newTime;
 
-            // update screen shaker
-            this.screenShaker.update(this.camera);
+            // update camera shaker
+            this._cameraShaker.update();
 
             // raycasting
-            if (this.useMouseRaycasting) {
+            if (this._useMouseRaycasting) {
                 if (this.currentMouseIntersection != null && this.currentMouseIntersection.object != null) {
                     this.currentMouseIntersection.object._mouseIntersect(false);
                 }
 
-                this.currentMouseIntersection = this.collisionManager.intersectObjects(this.mouseCoords, this.camera);
+                this.currentMouseIntersection = this.collisionManager.intersectObjects(this._mouseCoords, this.camera);
 
                 if (this.currentMouseIntersection != null && this.currentMouseIntersection.object != null) {
                     this.currentMouseIntersection.object._mouseIntersect(true);
                 }
             }
 
-            this.renderer.clear();
+            this._renderer.clear();
 
             // render
-            if (this.useRenderLayers === true) {
-                this.renderer.autoClear = true;
+            if (this._useRenderLayers === true) {
+                this._renderer.autoClear = true;
                 this.camera.layers.set(0);
-                this.renderer.render(this.scene, this.camera);
+                this._renderer.render(this.scene, this.camera);
 
-                this.renderer.autoClear = false;
+                this._renderer.autoClear = false;
 
                 this.camera.layers.set(1);
-                this.renderer.render(this.scene, this.camera);
+                this._renderer.render(this.scene, this.camera);
             } else {
-                if (this.useOutlineEffect) {
-                    this.outlineEffect.render(this.scene, this.camera);
+                if (this._useOutlineEffect) {
+                    this._outlineEffect.render(this.scene, this.camera);
                 } else {
-                    this.renderer.render(this.scene, this.camera);
+                    this._renderer.render(this.scene, this.camera);
                 }
             }
 
             // animation frame
-            this.animationFrameRequest = requestAnimationFrame(this.animateFunction);
+            this.animationFrameRequest = requestAnimationFrame(this._animateFunction);
         } else {
             if (this.animationFrameRequest) {
                 cancelAnimationFrame(this.animationFrameRequest);
@@ -796,18 +850,18 @@ GF.Game = class Game extends GF.StateMachine {
      * update
      * @param {number} delta 
      */
-    update(delta) {
+    _update(delta) {
         this.eventManager._update(delta);
         this.inputManager._update(delta);
         this.animationManager._update(delta);
 
         this.onUpdate(delta);
-        if (this.updateCallback) {
-            this.updateCallback(delta);
+        if (this._updateCallback) {
+            this._updateCallback(delta);
         }
 
-        for (var i = 0; i < this.objectsToUpdateArray.length; i++) {
-            this.objectsToUpdateArray[i]._update(delta);
+        for (var i = 0; i < this._objectsToUpdateArray.length; i++) {
+            this._objectsToUpdateArray[i]._update(delta);
         }
 
         this.collisionManager._update();
@@ -816,73 +870,64 @@ GF.Game = class Game extends GF.StateMachine {
     /**
      * destroy
      */
-    destroy() {
-        this.renderer.dispose();
+    _destroy() {
+        this._renderer.dispose();
 
         this.setEnvironmentLight(null);
 
-        for (var i = 0; i < this.objectsArray.length; i++) {
-            this.objectsArray[i]._destroy();
+        for (var i = 0; i < this._objectsArray.length; i++) {
+            this._objectsArray[i]._destroy();
         }
 
         this.eventManager._destroy();
         this.inputManager._destroy();
 
         this.onDestroy();
-        if (this.destroyCallback) {
-            this.destroyCallback();
+        if (this._destroyCallback) {
+            this._destroyCallback();
         }
 
-        if (this.usePointerLock) {
-            document.exitPointerLock();
+        if (this._usePointerLock) {
+            this.cancelPointerLock();
             document.body.removeEventListener("click", this.documentClickCallback);
-            document.removeEventListener('pointerlockchange', this.pointerlockChangeCallback, false);
+            document.removeEventListener('pointerlockchange', this._pointerLockChangeCallback, false);
         }
 
-        if (this.useMouseRaycasting) {
+        if (this._useMouseRaycasting) {
             document.removeEventListener('mousemove', this.mouseMoveCallback, false);
         }
 
     }
 
-    //#endregion
-    
     /**
      * On mouse move 
      */
-    onMouseMove(event) {
+    _onMouseMove(event) {
         // calculate mouse position in normalized device coordinates
         // (-1 to +1) for both components
 
-        const rect = this.renderer.domElement.getBoundingClientRect();
-        this.mouseCoords.x = ( (event.clientX - rect.x) / rect.width ) * 2 - 1;
-        this.mouseCoords.y = - ( (event.clientY - rect.y) / rect.height ) * 2 + 1;
-    }
-
-    /**
-     * Document click
-     */
-    documentClick() {
-        if (this.usePointerLock) {
-            document.body.requestPointerLock();
-        }
+        const rect = this._renderer.domElement.getBoundingClientRect();
+        this._mouseCoords.x = ( (event.clientX - rect.x) / rect.width ) * 2 - 1;
+        this._mouseCoords.y = - ( (event.clientY - rect.y) / rect.height ) * 2 + 1;
     }
 
     /**
      * Pointer lock state change
      */
-    pointerlockChange() {
+    _pointerlockChange() {
         if(document.pointerLockElement === document.body ||
             document.mozPointerLockElement === document.body) {
             this.onPointerLockChange(true);
-            if (this.pointerLockChangeCallback) {
-                this.pointerLockChangeCallback(true);
+            if (this._pointerLockChangeCallback) {
+                this._pointerLockChangeCallback(true);
             }
         } else {
             this.onPointerLockChange(false);
-            if (this.pointerLockChangeCallback) {
-                this.pointerLockChangeCallback(false);
+            if (this._pointerLockChangeCallback) {
+                this._pointerLockChangeCallback(false);
             }
         }
     }
+
+    //#endregion
 }

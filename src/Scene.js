@@ -3,8 +3,13 @@
  * Scene
  */
 GF.Scene = class Scene {
+    /**
+     * Create a template scene from an asset
+     * @param {GF.Game} game the game
+     * @param {any} sceneAsset the asset
+     */
     constructor(game, sceneAsset) {	     
-        this.game = game;      
+        this._game = game;      
         this.sceneAsset = sceneAsset;
         this.lights = [];
     }
@@ -33,7 +38,7 @@ GF.Scene = class Scene {
         }
 
         if (newObject != null) {
-            this.game.addObject(id, newObject);
+            this._game.addObject(id, newObject);
         }
 
         return newObject;
@@ -46,7 +51,7 @@ GF.Scene = class Scene {
         this.sceneObjects = [];
         this.objects = [];
         this.collisionVolumes = [];
-        this.sceneAssetData = this.game.loader.get(this.sceneAsset);
+        this.sceneAssetData = this._game.loader.get(this.sceneAsset);
 
         if (this.sceneAssetData != null && this.sceneAssetData.object != null && this.sceneAssetData.object.children != null && this.sceneAssetData.object.type === "Scene") {
             var children = this.sceneAssetData.object.children;
@@ -62,7 +67,7 @@ GF.Scene = class Scene {
 
                 // Collision volume
                 if (children[i].name === "CollisionBox") {
-                    cv = this.game.addStaticCollisionVolume(
+                    cv = this._game.addStaticCollisionVolume(
                         new GF.CollisionVolumeBox(scale.x, scale.y, scale.z, new THREE.Vector3(0,0,0)),
                         position
                     );
@@ -75,13 +80,13 @@ GF.Scene = class Scene {
                         // Mesh
                         if (children[i].name === "Mesh") {
                             // create geometry
-                            geometry = this.game.loader.get(children[i].userData.model);
+                            geometry = this._game.loader.get(children[i].userData.model);
 
                             // create material
                             mat = this.sceneAssetData.materials != null ? this.sceneAssetData.materials.find(m => m.uuid === children[i].material) : null;
                             if (mat != null) {
                                 material = GF.Utils.getDefaultMaterial(
-                                    this.game.loader,
+                                    this._game.loader,
                                     children[i].userData.map,
                                     children[i].userData.bumpMap,
                                     children[i].userData.specularMap,
@@ -109,7 +114,7 @@ GF.Scene = class Scene {
                             newMesh.scale.copy(scale);
 
                             this.sceneObjects.push(newMesh);
-                            this.game.addToScene(newMesh);
+                            this._game.addToScene(newMesh);
                         }
                         // GameObject
                         else {
@@ -143,13 +148,13 @@ GF.Scene = class Scene {
                     light.scale.copy(scale);
 
                     this.sceneObjects.push(light);
-                    this.game.addToScene(light);
+                    this._game.addToScene(light);
                 }
                 // HemisphereLight
                 else if (children[i].type === "HemisphereLight") {
                     light = new THREE.HemisphereLight(children[i].color, children[i].groundColor, children[i].intensity);
                     this.sceneObjects.push(light);
-                    this.game.addToScene(light);
+                    this._game.addToScene(light);
                 }
             } 
         }
@@ -160,7 +165,7 @@ GF.Scene = class Scene {
      */
     destroy() {
         for (var i = 0; i < this.sceneObjects.length; i++) {
-            this.game.removeFromScene(this.sceneObjects[i]);
+            this._game.removeFromScene(this.sceneObjects[i]);
         }
 
         for (var i = 0; i < this.objects.length; i++) {
@@ -168,7 +173,7 @@ GF.Scene = class Scene {
         }
 
         for (var i = 0; i < this.collisionVolumes.length; i++) {
-            this.game.removeStaticCollisionVolume(this.collisionVolumes[i])
+            this._game.removeStaticCollisionVolume(this.collisionVolumes[i])
         }
     }
 }

@@ -35,7 +35,9 @@ gulp.task('minify', function() {
         "./src/Scene.js",
         "./src/GameObject.js",
         "./src/ParticleSystem.js",
-        "./src/PhysicsObject.js"
+        "./src/PhysicsObject.js",
+        "./src/StaticObject.js",
+        "./src/CameraShaker.js"
     ]);
 
 
@@ -62,7 +64,6 @@ gulp.task('minify', function() {
          * The credits and copyright notice are listed below:
          * 
          * @credits for three.js - Copyright © 2010-2021 Three.js authors (MIT License)
-         * @credits for ScreenShake.js - Copyright (c) 2019 felix mariotto (MIT License)
          * @credits for THREEx.KeyboardState.js - Copyright (c) 2013 Jerome Etienne (MIT License)
          * @credits for howler.js - Copyright (c) 2013-2018, James Simpson of GoldFire Studios (MIT License)
          * @credits for w3.js - W3.JS 1.01 Jan 2017 by w3schools.com (No License)

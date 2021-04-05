@@ -5,22 +5,21 @@ const MIN_COLLISION_FORCE_SPEED = 0.2;
  */
 GF.CollisionManager = class CollisionManager {
     constructor(game){
-        this.game = game;
-        this.collisionVolumes = [];
-        this.collisionVolumesDictionary = {};
-        this.gameObjectsAssociated = [];
-        this.contacts = [];
-        this.raycaster = new THREE.Raycaster();
+        this._game = game;
+        this._collisionVolumes = {};
+        this._collisionVolumesDictionaryKeys = [];
+        this._contacts = [];
+        this._raycaster = new THREE.Raycaster();
     }
 
-    //#region private
+    //#region Internal
 
     /**
      * Calculate intersection between volumes
      * @param {GF.CollisionVolume} volume1
      * @param {GF.CollisionVolume} volume2
      */
-    calculateIntersectionOfVolumes(volume1, volume2) {
+    _calculateIntersectionOfVolumes(volume1, volume2) {
         var posDiff = [
             volume1.position[0] - volume2.position[0],
             volume1.position[1] - volume2.position[1],
@@ -64,321 +63,36 @@ GF.CollisionManager = class CollisionManager {
         return null;
     }
 
-    //#endregion
-
-    //#region API
-
     /**
-     * Intersect objects via ray casting
-     * Given a vector (ray) returns all objects that the ray intersects (useful for first person games)
-     * @param {Vector3} origin the origin of the ray
-     * @param {Vector3} direction the direction of the ray
-     * @param {string} type only consider objects of a specific type (NULL -> consider all objects)
-     * @param {number} maxDistance the maximum distance of intersection
+     * Convert collision groups to hex number
      */
-    intersectObjects(origin, direction, type, maxDistance) {
-        // update the picking ray
-        if (direction instanceof THREE.Camera) {
-            this.raycaster.setFromCamera(origin, direction);
-        } else {
-            this.raycaster.set(origin, direction);
-        }
-
-        // calculate objects intersecting the picking ray
-        var intersections = this.raycaster.intersectObjects(this.game.intersectableObjects);
-
-        if (intersections.length > 0) {
-            var intersectDistance = Infinity;
-            if (!(direction instanceof THREE.Camera)) {
-                intersectDistance = intersections[0].point.sub(origin).length();
-
-                // use max distance
-                if (maxDistance != null && intersectDistance > maxDistance) {
-                    return null;
-                }
-            }
-
-            if (type != null) {
-                if (isOfType(intersections[0].object.gameObject, type)) {
-                    return {object: intersections[0].object.gameObject, point: intersections[0].point, distance: intersectDistance};
-                }
-            } else {
-                return {object: intersections[0].object.gameObject, point: intersections[0].point, distance: intersectDistance};
-            }
-        } else {
-            return null;
-        }
-    } 
-
-    /**
-     * Get all objects in range of a source object
-     * @param {GameObject} objectSource source object
-     * @param {number} radius proximity radius
-     * @param {Vector3} direction direction [optional]
-     * @param {number} angle angle or field of view [optional]
-     */
-    getObjectsInRange(objectSource, radius, direction, angle, objectType) {
-        const objectsInRange = [];
-
-        if (direction) {
-            direction = new THREE.Vector3(direction.x, 0, direction.z);
-            direction.negate();
-        }
-
-        for (var i = 0; i < this.game.objectsArray.length; i++) {
-            if (objectType) {
-                if (isOfType(this.game.objectsArray[i], objectType)
-                && this.checkProximity(objectSource, this.game.objectsArray[i], radius, direction, angle)) {
-                    objectsInRange.push(this.game.objectsArray[i]);
-                }
-            } else {
-                if (this.checkProximity(objectSource, this.game.objectsArray[i], radius, direction, angle)) {
-                    objectsInRange.push(this.game.objectsArray[i]);
-                }
+    _convertAffectedCollisionGroupsToHex(groups) {
+        const hexArray = new Array(8).fill(0);
+        for (const group of groups) {
+            if (group === "solid") {
+                hexArray[0] = 1;
+            } else if (group === "a") {
+                hexArray[1] = 1;
+            } else if (group === "b") {
+                hexArray[2] = 1;
+            } else if (group === "c") {
+                hexArray[3] = 1;
+            } else if (group === "d") {
+                hexArray[4] = 1;
+            } else if (group === "e") {
+                hexArray[5] = 1;
+            } else if (group === "f") {
+                hexArray[6] = 1;
+            } else if (group === "g") {
+                hexArray[7] = 1;
             }
         }
-
-        return objectsInRange;
+        return Number("0x" + hexArray.reverse().join(""))
     }
-
-    /**
-     * Check proximity
-     * @param {GameObject} source source object
-     * @param {GameObject} target target object
-     * @param {number} radius proximity radius
-     * @param {Vector3} direction direction [optional]
-     * @param {number} angle angle or field of view [optional]
-     */
-    checkProximity(source, target, radius, direction, angle) {
-        if (source != target) {
-            const positionDifference = source.position.clone().sub(target.position);
-            if (positionDifference.length() <= radius) {
-                if (direction) {
-                    const directionNormalized = direction.clone();
-                    directionNormalized.normalize();
-                    positionDifference.normalize();
-    
-                    return Math.acos(directionNormalized.dot(positionDifference)) * (180 / Math.PI) <= angle;
-                }
-    
-                return true;
-            }
-        }
-        return false
-    }
-
-    /**
-     * Add a collision volume
-     * @param {GameObject} gameObject
-     * @param {CollisionVolume} volume 
-     * @param {Vector3} position 
-     * @returns new volume id
-     */
-    addVolume(gameObject, volume, position, autoUpdate = true) {
-        if (position == null && gameObject != null) {
-            position = gameObject.object3D.position;
-        }
-        // add volume
-        var newVolume = {
-            id: GF.Utils.uniqueId("Volume_"),
-            gameObject: gameObject,
-            autoUpdate: autoUpdate,
-            shape: volume,
-            position: [position.x, position.y, position.z],
-            next: null
-        };
-
-        if (this.collisionVolumes.length > 0) {
-            this.collisionVolumes[this.collisionVolumes.length - 1].next = newVolume;
-        }
-        this.collisionVolumes.push(newVolume);
-        this.collisionVolumesDictionary[newVolume.id] = newVolume;
-
-        // add unique game object to tracking list
-        var i = this.gameObjectsAssociated.findIndex(o => o === gameObject);
-        if (i < 0) {
-            this.gameObjectsAssociated.push(gameObject);
-        }
-
-        // add contacts
-        var v = this.collisionVolumes[0], newContact;
-        while (v != null) {
-            if (v != newVolume) {
-                newContact = {
-                    volume1: v,
-                    volume2: newVolume,
-                    normal01: null,
-                    normal02: null,
-                    collisionSpeed01: null,
-                    collisionSpeed02: null,
-                    point: null,
-                    touching: false,
-                    next: null
-                }
-                if (this.contacts.length > 0) {
-                    this.contacts[this.contacts.length - 1].next = newContact;
-                }
-                this.contacts.push(newContact);
-            }
-            v = v.next;
-        }
-
-        return newVolume;
-    }
-
-    /**
-     * Set volume position
-     * @param {string} id volume id
-     * @param {object} position volume new position
-     */
-    setVolumePosition(id, position) {
-        this.collisionVolumesDictionary[id].position = [
-            position.x + this.collisionVolumesDictionary[id].shape.offset[0],
-            position.y + this.collisionVolumesDictionary[id].shape.offset[1],
-            position.z + this.collisionVolumesDictionary[id].shape.offset[2]
-        ];
-    }
-
-    /**
-     * Remove a collision volume
-     * @param {CollisionVolume} volume 
-     */
-    removeVolume(id) {
-        // remove contacts
-        this.contacts = this.contacts.filter(c => c.volume1 !== this.collisionVolumesDictionary[id] && c.volume2 !== this.collisionVolumesDictionary[id]);
-
-        // remove volume
-        var i = this.collisionVolumes.findIndex(v => v.id === id);
-        if (i >= 0) {
-            this.collisionVolumes.splice(i, 1);
-            this.collisionVolumes[i - 1].next = i < this.collisionVolumes.length ? this.collisionVolumes[i] : null;
-            this.collisionVolumesDictionary[id] = null
-        }
-    }
-
-    //#region contact checks
-
-    /**
-     * Get contacts of volume
-     * @param {string} id 
-     */
-    getContactsOfVolume(id) {
-        var c = this.contacts[0];
-        var result = [];
-
-        while (c != null) {
-            if ((c.volume1.id === id || c.volume2.id === id) && c.touching) {
-                result.push(c);
-            }
-
-            c = c.next;
-        }
-
-        return result;
-    }
-
-    /**
-     * Get contacts of object
-     * @param {GameObject} object 
-     */
-    getContactsOfObject(object) {
-        var c = this.contacts[0];
-        var result = [];
-
-        while (c != null) {
-            if ((c.volume1.gameObject === object || c.volume2.gameObject === gameObject) && c.touching) {
-                result.push(c);
-            }
-
-            c = c.next;
-        }
-
-        return result;
-    }
-
-    /**
-     * Get contacts of object with all solid objects
-     * @param {GameObject} object 
-     */
-    getContactsOfObjectWithSolid(object) {
-        var c = this.contacts[0];
-        var result = [];
-
-        while (c != null) {
-            if (c.touching) {
-                if ( (c.volume1.gameObject === object && (c.volume2.gameObject == null || (c.volume2.gameObject != null && c.volume2.gameObject.solid))) ||
-                    (c.volume2.gameObject === object && (c.volume1.gameObject == null || (c.volume1.gameObject != null && c.volume1.gameObject.solid))) ) {
-                    result.push(c);
-                }
-            }
-
-            c = c.next;
-        }
-
-        return result;
-    }
-
-    /**
-     * Get contacts of object with all objects of type
-     * @param {GameObject} object 
-     */
-    getContactsOfObjectWithType(object, type) {
-        var c = this.contacts[0];
-        var result = [];
-
-        while (c != null) {
-            if (c.touching) {
-                if ( (c.volume1.gameObject === object && c.volume2.gameObject != null && isOfType(c.volume2.gameObject, type)) ||
-                    (c.volume2.gameObject === object && c.volume1.gameObject != null && isOfType(c.volume1.gameObject, type)) ) {
-                    result.push(c);
-                }
-            }
-
-            c = c.next;
-        }
-
-        return result;
-    }
-
-    /**
-     * Check ray collision
-     * @param {GameObject} object 
-     * @param {THREE.Vector3} direction 
-     * @returns 
-     */
-    checkRayCollision(object, direction, height) {
-        this.raycaster.set(
-            new THREE.Vector3(object.object3D.position.x, object.object3D.position.y + height, object.object3D.position.z),
-            direction
-        );
-
-        // calculate intersections
-        var intersections = this.raycaster.intersectObjects(this.game.rayCollisionObjects);
-
-        if (intersections.length > 0) {
-            var i = 0;
-            while(i < intersections.length && intersections[i].object != null && (intersections[i].object.gameObject == object || intersections[i].object.gameObject instanceof GF.PhysicsObject)) {
-                i++;
-            }
-            intersections[i].distance = Math.round(intersections[i].distance * 100) / 100;
-            intersections[i].point.x = Math.round(intersections[i].point.x * 100) / 100;
-            intersections[i].point.y = Math.round(intersections[i].point.y * 100) / 100;
-            intersections[i].point.z = Math.round(intersections[i].point.z * 100) / 100;
-            return intersections[i];
-        } else {
-            return null;
-        }
-    }
-
-    //#endregion
-
-    //#endregion
-
-    //#region internal
 
     /**
      * Update volume position
-     * @param {*} volume 
+     * @param {CollisionVolume} volume 
      */
     _updateVolumePosition(volume) {
         if (volume.autoUpdate && volume.gameObject != null && volume.gameObject.object3D != null) {
@@ -393,16 +107,16 @@ GF.CollisionManager = class CollisionManager {
     /**
      * Update
      */
-     _update() {
+    _update() {
         var c, relativeVelocity, collisionSpeedMagnitude, impulse, intersection, mass01, mass02, restitution01, restitution02;
 
         // calculate intersection
-        c = this.contacts[0];
+        c = this._contacts[0];
         while (c != null) {
             this._updateVolumePosition(c.volume1);
             this._updateVolumePosition(c.volume2);
 
-            intersection = this.calculateIntersectionOfVolumes(c.volume1, c.volume2);
+            intersection = this._calculateIntersectionOfVolumes(c.volume1, c.volume2);
 
             // there was a collision
             if (intersection != null) {
@@ -411,12 +125,8 @@ GF.CollisionManager = class CollisionManager {
                 c.normal02 = intersection[1];
                 c.point = intersection[2];
 
-                // if any of the objects are Physics Objects, calculate collision speed
-                if (
-                    ((c.volume1.gameObject != null && c.volume1.gameObject.speed != null) || (c.volume2.gameObject != null && c.volume2.gameObject.speed != null))
-                    // if both volumes are associated with game objects, both game objects must be solid to compute collision forces
-                    && !(c.volume1.gameObject != null && c.volume2.gameObject != null && (!c.volume1.gameObject.solid || !c.volume2.gameObject.solid))
-                ) {
+                // if any of the objects are Physics Objects and both collision volumes are solid, calculate collision speed
+                if (c.volume1.solid && c.volume2.solid && ((c.volume1.gameObject != null && c.volume1.gameObject.speed != null) || (c.volume2.gameObject != null && c.volume2.gameObject.speed != null))) {
                     relativeVelocity = [
                         (c.volume1.gameObject != null && c.volume1.gameObject.speed != null ? c.volume1.gameObject.speed.x : 0) - (c.volume2.gameObject != null && c.volume2.gameObject.speed != null ? c.volume2.gameObject.speed.x : 0),
                         (c.volume1.gameObject != null && c.volume1.gameObject.speed != null ? c.volume1.gameObject.speed.y : 0) - (c.volume2.gameObject != null && c.volume2.gameObject.speed != null ? c.volume2.gameObject.speed.y : 0),
@@ -508,12 +218,319 @@ GF.CollisionManager = class CollisionManager {
     }
 
     //#endregion
+
+    //#region API
+
+    /**
+     * Intersect objects via ray casting
+     * Given a vector (ray) returns all objects that the ray intersects (useful for first person games)
+     * @param {THREE.Vector3} origin the origin of the ray
+     * @param {THREE.Vector3} direction the direction of the ray
+     * @param {string} type only consider objects of a specific type (NULL -> consider all objects)
+     * @param {number} maxDistance the maximum distance of intersection
+     */
+    intersectObjects(origin, direction, type, maxDistance) {
+        // update the picking ray
+        if (direction instanceof THREE.Camera) {
+            this._raycaster.setFromCamera(origin, direction);
+        } else {
+            this._raycaster.set(origin, direction);
+        }
+
+        // calculate objects intersecting the picking ray
+        var intersections = this._raycaster.intersectObjects(this._game.intersectableObjects);
+
+        if (intersections.length > 0) {
+            var intersectDistance = Infinity;
+            if (!(direction instanceof THREE.Camera)) {
+                intersectDistance = intersections[0].point.sub(origin).length();
+
+                // use max distance
+                if (maxDistance != null && intersectDistance > maxDistance) {
+                    return null;
+                }
+            }
+
+            if (type != null) {
+                if (intersections[0].object.gameObject.type === type) {
+                    return {object: intersections[0].object.gameObject, point: intersections[0].point, distance: intersectDistance};
+                }
+            } else {
+                return {object: intersections[0].object.gameObject, point: intersections[0].point, distance: intersectDistance};
+            }
+        } else {
+            return null;
+        }
+    } 
+
+    /**
+     * Get all objects in range of a source object
+     * @param {GF.GameObject} objectSource source object
+     * @param {number} radius proximity radius
+     * @param {THREE.Vector3} direction direction [optional]
+     * @param {number} angle angle or field of view [optional]
+     */
+    getObjectsInRange(objectSource, radius, direction, angle, objectType) {
+        const objectsInRange = [];
+
+        if (direction) {
+            direction = new THREE.Vector3(direction.x, 0, direction.z);
+            direction.negate();
+        }
+
+        for (var i = 0; i < this._game._objectsArray.length; i++) {
+            if (objectType) {
+                if (this._game._objectsArray[i] === objectType
+                && this.checkProximity(objectSource, this._game._objectsArray[i], radius, direction, angle)) {
+                    objectsInRange.push(this._game._objectsArray[i]);
+                }
+            } else {
+                if (this.checkProximity(objectSource, this._game._objectsArray[i], radius, direction, angle)) {
+                    objectsInRange.push(this._game._objectsArray[i]);
+                }
+            }
+        }
+
+        return objectsInRange;
+    }
+
+    /**
+     * Check proximity
+     * @param {GF.GameObject} source source object
+     * @param {GF.GameObject} target target object
+     * @param {number} radius proximity radius
+     * @param {THREE.Vector3} direction direction [optional]
+     * @param {number} angle angle or field of view [optional]
+     */
+    checkProximity(source, target, radius, direction, angle) {
+        if (source != target) {
+            const positionDifference = source.position.clone().sub(target.position);
+            if (positionDifference.length() <= radius) {
+                if (direction) {
+                    const directionNormalized = direction.clone();
+                    directionNormalized.normalize();
+                    positionDifference.normalize();
+    
+                    return Math.acos(directionNormalized.dot(positionDifference)) * (180 / Math.PI) <= angle;
+                }
+    
+                return true;
+            }
+        }
+        return false
+    }
+
+    /**
+     * Add a collision volume
+     * @param {GF.GameObject} gameObject the volume associated GameObject (optional)
+     * @param {GF.CollisionVolume} volume the volume definition
+     * @param {THREE.Vector3} position the volume position
+     * @param {boolean} autoUpdate if the volume position will be auto updated from the GameObject (if provided) position (default is true)
+     * @param {string[]} affectedGroups the affected collision groups (default is ["solid"])
+     * @returns new volume id
+     */
+    addVolume(gameObject, volume, position, autoUpdate = true, affectedGroups = ["solid"]) {
+        if (position == null && gameObject != null && gameObject.object3D != null) {
+            position = gameObject.object3D.position;
+        }
+        affectedGroups = affectedGroups == null ? ["solid"] : affectedGroups.map(g => g.trim().toLowerCase());
+
+        // create volume
+        var newVolume = {
+            id: GF.Utils.uniqueId("Volume_"),
+            gameObject: gameObject,
+            autoUpdate: autoUpdate,
+            solid: affectedGroups != null ? affectedGroups.includes("solid") : true,
+            shape: volume,
+            affectedGroups: this._convertAffectedCollisionGroupsToHex(affectedGroups),
+            position: [position.x, position.y, position.z],
+            next: null
+        };
+
+        // add contacts
+        for (const volumeId of this._collisionVolumesDictionaryKeys) {
+            if ((this._collisionVolumes[volumeId].affectedGroups & newVolume.affectedGroups) !== 0) {
+                var newContact = {
+                    volume1: this._collisionVolumes[volumeId],
+                    volume2: newVolume,
+                    normal01: null,
+                    normal02: null,
+                    collisionSpeed01: null,
+                    collisionSpeed02: null,
+                    point: null,
+                    touching: false,
+                    next: null
+                }
+                if (this._contacts.length > 0) {
+                    this._contacts[this._contacts.length - 1].next = newContact;
+                }
+                this._contacts.push(newContact);
+            }
+        }
+
+        // add volume
+        this._collisionVolumes[newVolume.id] = newVolume;
+        this._collisionVolumesDictionaryKeys = Object.keys(this._collisionVolumes);
+
+        return newVolume;
+    }
+
+    /**
+     * Set volume position
+     * @param {string} id volume or volume id
+     * @param {THREE.Vector3} position volume new position
+     */
+    setVolumePosition(id, position) {
+        this._collisionVolumes[id].position = [
+            position.x + this._collisionVolumes[id].shape.offset[0],
+            position.y + this._collisionVolumes[id].shape.offset[1],
+            position.z + this._collisionVolumes[id].shape.offset[2]
+        ];
+    }
+
+    /**
+     * Remove a collision volume
+     * @param {GF.CollisionVolume} volume 
+     */
+    removeVolume(id) {
+        // remove contacts
+        this._contacts = this._contacts.filter(c => c.volume1 !== this._collisionVolumes[id] && c.volume2 !== this._collisionVolumes[id]);
+        // reassign iterators
+        for (var i = 0; i < this._contacts.length; i++) {
+            this._contacts[i].next = i < this._contacts.length - 1 ? this._contacts[i + 1] : null;
+        }
+
+        // remove volume
+        delete this._collisionVolumes[id];
+        this._collisionVolumesDictionaryKeys = Object.keys(this._collisionVolumes);
+    }
+
+    //#region contact checks
+
+    /**
+     * Get contacts of GameObject or a CollisionVolume
+     * @param {GF.GameObject | string} object a GameObject or a CollisionVolumeId
+     */
+    getContacts(object) {
+        var c = this._contacts[0];
+        var result = [];
+
+        var property = typeof(object) === "string" ? "id" : "gameObject";
+
+        while (c != null) {
+            if ((c.volume1[property] === object || c.volume2[property] === object) && c.touching) {
+                result.push({
+                    contact: c,
+                    other: c.volume1[property] === object ? c.volume2.gameObject : c.volume1.gameObject
+                });
+            }
+
+            c = c.next;
+        }
+
+        return result;
+    }
+
+    /**
+     * Get contacts with solid volumes of GameObject or a CollisionVolume
+     * @param {GF.GameObject | string} object a GameObject or a CollisionVolumeId
+     */
+     getContactsWithSolid(object) {
+        var c = this._contacts[0];
+        var result = [];
+
+        var property = typeof(object) === "string" ? "id" : "gameObject";
+
+        while (c != null) {
+            if (c.touching) {
+                if ((c.volume1[property] === object && c.volume2.solid) || (c.volume2[property] === object && c.volume1.solid)) {
+                    result.push({
+                        contact: c,
+                        other: c.volume1[property] === object ? c.volume2.gameObject : c.volume1.gameObject
+                    });
+                }
+            }
+
+            c = c.next;
+        }
+
+        return result;
+    }
+
+    /**
+     * Get contacts of GameObject or a CollisionVolume with all objects of a type
+     * @param {GF.GameObject | string} object a GameObject or a CollisionVolumeId
+     * @param {string} type the other GameObject type
+     */
+    getContactsWithType(object, type) {
+        var c = this._contacts[0];
+        var result = [];
+
+        var property = typeof(object) === "string" ? "id" : "gameObject";
+        var types = type instanceof Array ? type : [type];
+
+        while (c != null) {
+            if (c.touching) {
+                if ( (c.volume1[property] === object && c.volume2.gameObject != null && types.includes(c.volume2.gameObject.type)) ||
+                    (c.volume2[property] === object && c.volume1.gameObject != null && types.includes(c.volume1.gameObject.type)) ) {
+                    result.push({
+                        contact: c,
+                        other: c.volume1[property] === object ? c.volume2.gameObject : c.volume1.gameObject
+                    });
+                }
+            }
+
+            c = c.next;
+        }
+
+        return result;
+    }
+
+    /**
+     * Check ray collision
+     * @param {GF.GameObject} object the object of ray origin
+     * @param {THREE.Vector3} direction the ray direction
+     * @returns the intersection point
+     */
+    checkRayCollision(object, direction, height) {
+        this._raycaster.set(
+            new THREE.Vector3(object.object3D.position.x, object.object3D.position.y + height, object.object3D.position.z),
+            direction
+        );
+
+        // calculate intersections
+        var intersections = this._raycaster.intersectObjects(this._game._rayCollisionObjects);
+
+        if (intersections.length > 0) {
+            var i = 0;
+            while(i < intersections.length && intersections[i].object != null && (intersections[i].object.gameObject == object || intersections[i].object.gameObject instanceof GF.PhysicsObject)) {
+                i++;
+            }
+            intersections[i].distance = Math.round(intersections[i].distance * 100) / 100;
+            intersections[i].point.x = Math.round(intersections[i].point.x * 100) / 100;
+            intersections[i].point.y = Math.round(intersections[i].point.y * 100) / 100;
+            intersections[i].point.z = Math.round(intersections[i].point.z * 100) / 100;
+            return intersections[i];
+        } else {
+            return null;
+        }
+    }
+
+    //#endregion
+
+    //#endregion
 }
 
 /**
  * Collision Volume
  */
 GF.CollisionVolume = class CollisionVolume {
+    /**
+     * CollisionVolume constructor
+     * @param {GF.COLLISION_SPHERE | GF.COLLISION_CYLINDER | GF.COLLISION_BOX} type the volume shape
+     * @param {number[]} size the size array [x, y, z]
+     * @param {number[]} offset the offset origin array [x, y, z]
+     */
     constructor(type, size, offset) {
         this.type = type;
 

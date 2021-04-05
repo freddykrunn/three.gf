@@ -174,6 +174,7 @@ GF.ParticleSystem = class ParticleSystem extends GF.GameObject {
 
     /**
      * Update
+	 * @param {number} delta 
      */
 	onUpdate(delta) {
 		super.onUpdate(delta);

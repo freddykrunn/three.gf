@@ -1,15 +1,22 @@
-// default aspect ratios
+/**
+ * Default Aspect-ratio values
+ */
 GF.ASPECT_RATIO = {
     _16_9: 16/9,
     _4_3: 4/3,
     _1_1: 1/1
 }
 
-// graphics presets
+/**
+ * Graphics presets
+ */
 GF.GRAPHICS_PRESET = {
-    PS1_Style: "PS1"
+    PS1_Style: "PS1" // PlayStation 1 style
 }
 
+/**
+ * Graphics presets params 
+ */
 GF.GRAPHICS_PRESET_PARAMS = {
     [GF.GRAPHICS_PRESET.PS1_Style]: {
         resolution: {
@@ -82,17 +89,25 @@ function loadScripsRecursive(list, prefix, onFinish) {
 }
 
 /**
- * Controller
+ * Controller (The main class of the framework)
  * It is required to have declared two default pages: LoadingPage and GamePage
  */
 GF.GameController = class GameController {
-    constructor(container, gameClass, pages, sourceFilesToLoad, afterLoad) {
+    /**
+     * Game Controller (The main class of the framework)
+     * @param {string} container the selector of the div where the game will be displayed
+     * @param {any | GF.Game} gameParams a class extending GF.Game or params to create a new Game class
+     * @param {{name: string, className: string}[]} pages the game pages declaration
+     * @param {{objects: string[], pages: string[]}} sourceFilesToLoad the game source .js files to load
+     * @param {callback} afterLoad when the game source files are all loaded
+     */
+    constructor(container, gameParams, pages, sourceFilesToLoad, afterLoad) {
         if (sourceFilesToLoad == null) {
-            this._init(container, gameClass, pages, afterLoad);
+            this._init(container, gameParams, pages, afterLoad);
         } else if (sourceFilesToLoad instanceof Array) {
             loadScripsRecursive(sourceFilesToLoad, "", () => {
                 setTimeout(() => {
-                    this._init(container, gameClass, pages, afterLoad);
+                    this._init(container, gameParams, pages, afterLoad);
                 })
             });            
         } else {
@@ -101,22 +116,21 @@ GF.GameController = class GameController {
             loadScripsRecursive(sourceFilesToLoad["objects"], sourcePath + "/objects/", () => {
                 loadScripsRecursive(sourceFilesToLoad["pages"], sourcePath + "/pages/", () => {
                     setTimeout(() => {
-                        this._init(container, gameClass, pages, afterLoad);
+                        this._init(container, gameParams, pages, afterLoad);
                     })
                 }); 
             });
         }
     }
 
+    //#region Internal
+
     /**
      * Init controller 
      */
-    _init(container, gameClass, pages, afterLoad) {
+    _init(container, gameParams, pages, afterLoad) {
         // assets loader
         this.assets = new GF.AssetsLoader();
-
-        // global variables
-        this.global = {};
 
         document.body.style.padding = "0";
         document.body.style.margin = "0";
@@ -126,37 +140,37 @@ GF.GameController = class GameController {
         document.body.style.overflow = "hidden";
 
         // create canvas and containers
-        this.container = document.querySelector(container);
-        this.container.style.overflow = "hidden";
-        this.container.style.position = "relative";
-        this.container.style.marginLeft = "auto";
-        this.container.style.marginRight = "auto";
-        this.container.style.top = "50%";
-        this.container.style.transform = "translateY(-50%)";
-        this.gameCanvas = createCanvas(this.container, 2);
-        this.pageContainer = createContentContainer(this.container, 4);
-        this.modalContainer = createContentContainer(this.container, 6);
-        this.modalContainer.style.display = "none";
+        this._container = document.querySelector(container);
+        this._container.style.overflow = "hidden";
+        this._container.style.position = "relative";
+        this._container.style.marginLeft = "auto";
+        this._container.style.marginRight = "auto";
+        this._container.style.top = "50%";
+        this._container.style.transform = "translateY(-50%)";
+        this._gameCanvas = createCanvas(this._container, 2);
+        this._pageContainer = createContentContainer(this._container, 4);
+        this._modalContainer = createContentContainer(this._container, 6);
+        this._modalContainer.style.display = "none";
 
         // game
-        if (typeof(gameClass) === "string") {
-            this.game = window.eval.call(window, `(function (canvas, loader) { return new ${gameClass}(canvas, loader) })`)(this.gameCanvas, this.assets);
+        if (typeof(gameParams) === "string") {
+            this.game = window.eval.call(window, `(function (canvas, loader) { return new ${gameParams}(canvas, loader) })`)(this._gameCanvas, this.assets);
         } else {
-            this.game = new GF.Game(this.gameCanvas, this.assets, gameClass.params, gameClass.onStart, gameClass.onUpdate, gameClass.onStop, gameClass.onTickUpdate, gameClass.onPointerLockChange);
+            this.game = new GF.Game(this._gameCanvas, this.assets, gameParams.params, gameParams.onStart, gameParams.onUpdate, gameParams.onStop, gameParams.onTickUpdate, gameParams.onPointerLockChange);
         }
         this.input = this.game.inputManager;
         this.animation = this.game.animationManager;
 
         // aspect ratio
-        this.aspectRatio = this.game.aspectRatio != null ? this.game.aspectRatio : GF.ASPECT_RATIO._16_9;
+        this._aspectRatio = this.game._aspectRatio != null ? this.game._aspectRatio : GF.ASPECT_RATIO._16_9;
 
         // preset
-        if (this.game.graphicsPreset === GF.GRAPHICS_PRESET.PS1_Style) {
-            this.gameCanvas.style.imageRendering = "pixelated";
+        if (this.game._graphicsPreset === GF.GRAPHICS_PRESET.PS1_Style) {
+            this._gameCanvas.style.imageRendering = "pixelated";
         }
 
         // page manager
-        this.pages = new GF.PageManager(this.pageContainer, this.modalContainer);
+        this.pages = new GF.PageManager(this._pageContainer, this._modalContainer);
 
         // add pages
         if (pages) {
@@ -228,6 +242,10 @@ GF.GameController = class GameController {
         }
     }
 
+    //#endregion
+
+    //#region API
+
     /**
      * Go to page
      */
@@ -277,22 +295,22 @@ GF.GameController = class GameController {
     }
     
     /**
-     * On window resize
+     * On window resize (must be called whenever the container div changes its size)
      */
     onWindowResize() {
         var width, height;
 
-        width = window.innerHeight * this.aspectRatio;
+        width = window.innerHeight * this._aspectRatio;
         height = window.innerHeight;
 
         if (width > window.innerWidth) {
             width = window.innerWidth;
-            height = (1 / this.aspectRatio) * window.innerWidth;
+            height = (1 / this._aspectRatio) * window.innerWidth;
         }
 
         // update game canvas
-        this.container.style.width = width + "px";
-        this.container.style.height = height + "px";
+        this._container.style.width = width + "px";
+        this._container.style.height = height + "px";
         this.game.onContainerResize(width, height);
 
         // notify pages of  window resize
@@ -301,8 +319,8 @@ GF.GameController = class GameController {
 
     /**
      * Add asset to load
-     * @param {string} name 
-     * @param {AssetType} type 
+     * @param {string} name the asset name
+     * @param {AssetType} type the asset type
      * @param {string | object} params the path for the file, or a group of params in certain cases
      */
     addAsset(name, type, params) {
@@ -311,16 +329,18 @@ GF.GameController = class GameController {
 
     /**
      * Add preloaded asset
-     * @param {string} name 
-     * @param {AssetType} type 
-     * @param {object} content
+     * @param {string} name the asset name
+     * @param {AssetType} type the asset type
+     * @param {object} content the asset
      */
     addPreloadedAsset(name, type, content) {
         this.assets.addPreloaded(name, type, content)
     }
 
     /**
-     * Load all assets
+     * Load all assets (only the ones that are not loaded yet)
+     * @param {function} callback callback when loading is finished
+     * @param {boolean} showLoadingModal if the loading modal is to be shown while loading
      */
     loadAllAssets(callback, showLoadingModal = true) {
         if (showLoadingModal) {
@@ -374,4 +394,6 @@ GF.GameController = class GameController {
     destroy() {
         window.removeEventListener('resize', this.onWindowResizeCallback);
     }
+
+    //#endregion
 }
