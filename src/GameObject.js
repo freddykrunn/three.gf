@@ -383,21 +383,29 @@ GF.GameObject = class GameObject extends GF.StateMachine {
      * Returns this object's radius
      */
     getRadius() {
-        if (this.object3D.geometry.boundingBox == null) {
-            this.object3D.geometry.computeBoundingBox();
+        if (this.object3D && this.object3D.geometry) {
+            if (this.object3D.geometry.boundingBox == null) {
+                this.object3D.geometry.computeBoundingBox();
+            }
+            return Math.max(Math.abs(this.object3D.geometry.boundingBox.max.x - this.object3D.geometry.boundingBox.min.x),
+            Math.abs(this.object3D.geometry.boundingBox.max.z - this.object3D.geometry.boundingBox.min.z));
+        } else {
+            return 0;
         }
-        return Math.max(Math.abs(this.object3D.geometry.boundingBox.max.x - this.object3D.geometry.boundingBox.min.x),
-        Math.abs(this.object3D.geometry.boundingBox.max.z - this.object3D.geometry.boundingBox.min.z));
     }
 
      /**
      * Returns this object's height
      */
     getHeight() {
-        if (this.object3D.geometry.boundingBox == null) {
-            this.object3D.geometry.computeBoundingBox();
+        if (this.object3D && this.object3D.geometry) {
+            if (this.object3D.geometry.boundingBox == null) {
+                this.object3D.geometry.computeBoundingBox();
+            }
+            return Math.abs(this.object3D.geometry.boundingBox.max.y - this.object3D.geometry.boundingBox.min.y);
+        } else {
+            return 0;
         }
-        return Math.abs(this.object3D.geometry.boundingBox.max.y - this.object3D.geometry.boundingBox.min.y);
     }
 
     /**
@@ -418,6 +426,21 @@ GF.GameObject = class GameObject extends GF.StateMachine {
             this.sceneAddedObjects = [];
         }
         this.sceneAddedObjects.push(object3D);
+    }
+
+    /**
+     * Create new sound player
+     * @param {string} asset audio buffer asset
+     * @param {any} params params
+     * {
+     *  positional: boolean (if the sound is positional or global)
+     *  loop: boolean,
+     *  volume: number (0 - 1)
+     *  distance: number (in case of positional=false)
+     * }
+     */
+    newSoundPlayer(asset, params) {
+        return GF.Utils.newSound(this.game._audioListener, this.loader.get(asset), params);
     }
 
     /**

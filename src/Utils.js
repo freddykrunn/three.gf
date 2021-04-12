@@ -26,6 +26,8 @@ GF.Utils = {
         return deg * (Math.PI / 180);
     },
 
+    //#region objects
+
     /**
      * Build 3D object
      * @param {any} params 
@@ -243,4 +245,41 @@ GF.Utils = {
         }
         return resultBbox;
     },
+
+    //#endregion
+
+    //#region audio
+
+    /**
+     * Build new sound
+     * @param {THREE.AudioListener} listener audio listener
+     * @param {any} buffer sound buffer
+     * @param {any} params params
+     * {
+     *  positional: boolean (if the sound is positional or global)
+     *  loop: boolean,
+     *  volume: number (0 - 1)
+     *  distance: number (in case of positional=false)
+     * }
+     */
+    newSound(listener, buffer, params) {
+        var sound;
+        // create a global audio source
+        if (params.positional) {
+            sound = new THREE.PositionalAudio( listener );
+            sound.setBuffer( buffer );
+            sound.setLoop( params.loop );
+            sound.setVolume( params.volume );
+	        sound.setRefDistance( params.distance );
+        } else {
+            sound = new THREE.Audio( listener );
+            sound.setBuffer( buffer );
+            sound.setLoop( params.loop );
+            sound.setVolume( params.volume );
+        }
+        sound.crossOrigin = "anonymous";
+        return sound;
+    }
+
+    //#endregion
 }

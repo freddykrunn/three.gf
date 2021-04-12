@@ -38,15 +38,9 @@ GF.LOADING_MODAL = "loading";
 function createCanvas(container, zIndex) {
     const canvas = document.createElement("canvas");
     canvas.style.position = "absolute";
-    canvas.style.width = "100%";
-    canvas.style.height = "100%";
-    canvas.style.maxHeight = "100%";
-    canvas.style.maxWidth = "100%";
     canvas.style.zIndex = zIndex+"";
     canvas.style.transition = "linear 0.2s filter";
 
-    canvas.width = container.offsetWidth;
-    canvas.height = container.offsetHeight;
     container.appendChild(canvas);
     return canvas;
 }
@@ -132,15 +126,16 @@ GF.GameController = class GameController {
         // assets loader
         this.assets = new GF.AssetsLoader();
 
-        document.body.style.padding = "0";
-        document.body.style.margin = "0";
-        document.body.style.background = "black";
-        document.body.style.width = "100vw";
-        document.body.style.height = "100vh";
-        document.body.style.overflow = "hidden";
+        this._mainContainer = document.querySelector(container);
+        this._mainContainer.style.padding = "0";
+        this._mainContainer.style.margin = "0";
+        this._mainContainer.style.background = "black";
+        this._mainContainer.style.overflow = "hidden";
+        this._mainContainer.name = "jgf-main-container";
 
         // create canvas and containers
-        this._container = document.querySelector(container);
+        this._container = document.createElement("div");
+        this._container.name = "jgf-game-container";
         this._container.style.overflow = "hidden";
         this._container.style.position = "relative";
         this._container.style.marginLeft = "auto";
@@ -148,15 +143,17 @@ GF.GameController = class GameController {
         this._container.style.top = "50%";
         this._container.style.transform = "translateY(-50%)";
         this._gameCanvas = createCanvas(this._container, 2);
+        this._gameDebugCanvas = createCanvas(this._container, 3);
         this._pageContainer = createContentContainer(this._container, 4);
         this._modalContainer = createContentContainer(this._container, 6);
         this._modalContainer.style.display = "none";
+        this._mainContainer.appendChild(this._container);
 
         // game
         if (typeof(gameParams) === "string") {
-            this.game = window.eval.call(window, `(function (canvas, loader) { return new ${gameParams}(canvas, loader) })`)(this._gameCanvas, this.assets);
+            this.game = window.eval.call(window, `(function (canvas, loader) { return new ${gameParams}(canvas, debugCanvas, loader) })`)(this._gameCanvas, this._gameDebugCanvas, this.assets);
         } else {
-            this.game = new GF.Game(this._gameCanvas, this.assets, gameParams.params, gameParams.onStart, gameParams.onUpdate, gameParams.onStop, gameParams.onTickUpdate, gameParams.onPointerLockChange);
+            this.game = new GF.Game(this._gameCanvas, this._gameDebugCanvas, this.assets, gameParams.params, gameParams.onStart, gameParams.onUpdate, gameParams.onStop, gameParams.onTickUpdate, gameParams.onPointerLockChange);
         }
         this.input = this.game.inputManager;
         this.animation = this.game.animationManager;
@@ -300,12 +297,12 @@ GF.GameController = class GameController {
     onWindowResize() {
         var width, height;
 
-        width = window.innerHeight * this._aspectRatio;
-        height = window.innerHeight;
+        width = this._mainContainer.offsetHeight * this._aspectRatio;
+        height = this._mainContainer.offsetHeight;
 
-        if (width > window.innerWidth) {
-            width = window.innerWidth;
-            height = (1 / this._aspectRatio) * window.innerWidth;
+        if (width > this._mainContainer.offsetWidth) {
+            width = this._mainContainer.offsetWidth;
+            height = (1 / this._aspectRatio) * this._mainContainer.offsetWidth;
         }
 
         // update game canvas

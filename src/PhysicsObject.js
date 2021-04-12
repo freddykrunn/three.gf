@@ -32,7 +32,7 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
         this.dynamic = params.dynamic;
         this.mass = params.mass != null ? params.mass : 1;
         this.restitution = params.restitution != null ? params.restitution : 0.01;
-        this.floorFriction = params.floorFriction;
+        this.kineticCollisionFriction = params.collisionFriction;
         this.maxHorizontalSpeed = params.maxSpeed != null ? params.maxSpeed.horizontal : null;
         this.maxVerticalSpeed = params.maxSpeed != null ? params.maxSpeed.vertical : null;
         this.affectedByGravity = params.gravity != null ? params.gravity : true;
@@ -150,6 +150,7 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
                     if (this.speed.y < 0) {
                         this.speed.y = 0;
                     }
+                    this.isColliding = true;
 
                     if (this.floorCollision.point.y - this.object3D.position.y < this.rayCollisionMinStepHeight) {
                         this.object3D.position.y = this.floorCollision.point.y;
@@ -175,6 +176,21 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
             this.movementDirection.normalize();
         }
 
+        // apply kinetic friction
+        if (this.speed.length() > 0 && this.isColliding && this.kineticCollisionFriction > 0) {
+            // Ff = u * Fn ; Fn = m * g;
+            this._frictionVector.copy(this.speed);
+            this._frictionVector.normalize();
+            this._frictionVector.multiplyScalar(GRAVITY_ACCELERATION * this.game._speed * this.kineticCollisionFriction);
+
+            // subtract friction
+            this.speed.add(this._frictionVector);
+
+            if (this._frictionVector.dot(this.speed) > 0) {
+                this.speed.set(0,0,0);
+            }
+        }
+
         // calculate acceleration based on forces applied
         this._resultForce.divideScalar(this.mass);
         this._acceleration.set(0, this.affectedByGravity ? GRAVITY_ACCELERATION * this.game._speed : 0, 0); // set base gravity acceleration
@@ -182,23 +198,6 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
 
         // acceleration
         this.speed.add(this._acceleration);
-
-        // apply floor friction
-        if ((this.speed.x != 0 || this.speed.z != 0)
-        && this.getLastSpeed("y") === 0 && this._acceleration.x === 0 && this._acceleration.z === 0 && this.floorFriction > 0) {
-            // Ff = u * Fn ; Fn = m * g;
-            this._frictionVector.set(this.speed.x, 0, this.speed.z);
-            this._frictionVector.normalize();
-            this._frictionVector.multiplyScalar(GRAVITY_ACCELERATION * this.floorFriction);
-
-            // subtract friction
-            this.speed.x += this._frictionVector.x;
-            this.speed.z += this._frictionVector.z;
-
-            if (this._frictionVector.dot(this.speed) > 0) {
-                this.speed.set(0,0,0);
-            }
-        }
 
         // clamp horizontal speed
         if (this.maxHorizontalSpeed != null && this.maxHorizontalSpeed >= 0) {
@@ -214,6 +213,8 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
         }
 
         this._resultForce.set(0, 0, 0);
+
+        this.isColliding = false;
     }
 
     /**

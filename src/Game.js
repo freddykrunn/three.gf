@@ -57,6 +57,7 @@ GF.Game = class Game extends GF.StateMachine {
     /**
      * Game
      * @param {HTMLCanvasElement} canvas the game canvas
+     * @param {HTMLCanvasElement} debugCanvas the game debug info canvas
      * @param {GF.AssetsLoader} loader the assets loader
      * @param {any} params the game params
      * @param {function} initCallback on game init callback
@@ -65,10 +66,11 @@ GF.Game = class Game extends GF.StateMachine {
      * @param {function} tickUpdateCallback on game tick callback 
      * @param {function} pointerLockChangeCallback on pointer lock callback
      */
-    constructor(canvas, loader, params, initCallback, updateCallback, destroyCallback, tickUpdateCallback, pointerLockChangeCallback) {
+    constructor(canvas, debugCanvas, loader, params, initCallback, updateCallback, destroyCallback, tickUpdateCallback, pointerLockChangeCallback) {
         super();
         // private properties
         this._canvas = canvas;
+        this._debugCanvas = debugCanvas;
         var width = this._canvas.width * 0.5;
         var height = this._canvas.height * 0.5;
 
@@ -89,6 +91,7 @@ GF.Game = class Game extends GF.StateMachine {
             params.antialias = false;
             params.precision = "lowp";
             params.shadows = false;
+            this._useOutlineEffect = false;
         }
 
         // game speed
@@ -157,6 +160,10 @@ GF.Game = class Game extends GF.StateMachine {
         this.camera.position.set(0, 0, 0);
         this.camera.lookAt(new THREE.Vector3(0, 0, 1));
 
+        // audio listener
+        this._audioListener = new THREE.AudioListener();
+        this.camera.add( this._audioListener );
+
         // camera shaker
         this._cameraShaker = new GF.CameraShaker(this.camera);
 
@@ -217,9 +224,7 @@ GF.Game = class Game extends GF.StateMachine {
      */
     setResolutionRatio(ratio) {
         this._resolutionRatio = ratio != null ? ratio : 1;
-        if (this._rendererSize != null) {
-            this._updateRenderSize(this._renderer.domElement.offsetWidth, this._renderer.domElement.offsetHeight);
-        }
+        this._updateRenderSize(this._renderer.domElement.offsetWidth, this._renderer.domElement.offsetHeight);
     }
 
     /**
@@ -291,6 +296,59 @@ GF.Game = class Game extends GF.StateMachine {
      */
     setSpeed(speed) {
         this._speed = speed == null ? 1 : speed;
+    }
+
+    /**
+     * Slow the game down for an amount of time
+     * @param {number} duration 
+     * @param {number} amount slow down amount
+     */
+    slowDownFor(duration, amount) {
+        this.setSpeed(amount);
+        setTimeout(() => {
+            this.setSpeed(1)
+        }, duration);
+    }
+
+    /**
+     * Activate debug mode
+     * @param {boolean} activate 
+     * @param {any} params debug params
+     */
+    activateDebugMode(activate, params) {
+        if (activate) {
+            this._debugParams = params;
+
+            if (this._debugParams.showLabels) {
+                this._debugCanvas.style.display = "";
+                this._debugCanvasContext = this._debugCanvas.getContext("2d");
+                this._debugCanvas.style.width = this._canvas.width + 'px';
+                this._debugCanvas.style.height = this._canvas.height  + 'px';
+                this._debugCanvas.width = this._canvas.width;
+                this._debugCanvas.height = this._canvas.height;
+            } else {
+                this._debugCanvas.style.display = "none";
+                this._debugCanvasContext = null;
+            }
+            
+            this._debug = true;
+
+            this.collisionManager._activateDebugMode(this._debugParams.showCollisionBoxes);
+        } else {
+            this._debugCanvas.style.display = "none";
+            this._debugCanvasContext = null;
+            this._debugParams = null;
+            this._debug = false;
+            this.collisionManager._activateDebugMode(false);
+        }
+    }
+
+    /**
+     * If game is in debug mode
+     * @returns
+     */
+    isInDebug() {
+        return this._debug;
     }
 
     /**
@@ -514,10 +572,10 @@ GF.Game = class Game extends GF.StateMachine {
         }
 
         object._init(this.scene, this.camera, this);
-        object._id = id;
         if (id == null) {
             id = GF.Utils.uniqueId("GameObject_");
         }
+        object._id = id;
         this._objects[id] = object;
 
         if (this._objectsArray == null) {
@@ -692,6 +750,7 @@ GF.Game = class Game extends GF.StateMachine {
      */
     start(gamePage) {
         if (!this.initialized) {
+            this.activateDebugMode(false);
             this.gamePage = gamePage;
             this._init();
             this.resume();
@@ -738,6 +797,77 @@ GF.Game = class Game extends GF.StateMachine {
     //#region Internal
 
     /**
+     * Project a point in 3d space to screen space
+     * @param {Vector3} point the point to project
+     * @param {number} width canvas width
+     * @param {number} height canvas height
+     * @returns 
+     */
+    _projectPointToScreen(point, width, height) {
+        var pos = point.clone()
+        pos.project(this.camera);
+
+        pos.x = Math.round((0.5 + pos.x / 2) * width);
+        pos.y = Math.round((0.5 - pos.y / 2) * height);
+
+        return pos;
+    }
+
+    /**
+     * Update debug canvas
+     */
+    _updateDebugCanvas() {
+        if (this._debugCanvasContext) {
+            var width = this._debugCanvas.offsetWidth;
+            var height = this._debugCanvas.offsetHeight;
+            var labelWidth = width * 0.1;
+            var labelHeight = height * 0.05;
+            var labelPaddingHorizontal = labelWidth * 0.1;
+            var labelPaddingVertical = labelHeight * 0.1;
+            var itemPadding = labelHeight * 0.3;
+            this._debugCanvasContext.font = (labelHeight * 0.25) + "px Verdana";
+            this._debugCanvasContext.textBaseline = "top";
+
+            this._debugCanvasContext.clearRect(0, 0, width, height);
+
+            var debugObjectsToDisplay = [];
+            if (this._debugParams != null) {
+                if (this._debugParams.excludedTypes instanceof Array) {
+                    for (var i = 0; i < this._objectsToUpdateArray.length; i++) {
+                        if (!this._debugParams.excludedTypes.includes(this._objectsToUpdateArray[i].type)) {
+                            debugObjectsToDisplay.push(this._objectsToUpdateArray[i]);
+                        }
+                    }
+                } else {
+                    debugObjectsToDisplay = this._objectsToUpdateArray;
+                }
+            }
+
+            var labelX, labelY;
+            for (var i = 0; i < debugObjectsToDisplay.length; i++) {
+                var point = this._projectPointToScreen(debugObjectsToDisplay[i].position.clone().add(new THREE.Vector3(0, 1, 0)), width, height);
+                labelX = point.x - (labelWidth * 0.5);
+                labelY = point.y;
+                
+                this._debugCanvasContext.fillStyle = "rgba(0,0,0,0.5)";
+                this._debugCanvasContext.fillRect(labelX, labelY, labelWidth, labelHeight);
+                this._debugCanvasContext.fillStyle = "White";
+                this._debugCanvasContext.fillText(debugObjectsToDisplay[i].type, labelX + labelPaddingHorizontal, labelY + labelPaddingVertical, labelWidth);
+
+                this._debugCanvasContext.fillStyle = "LightCyan";
+                this._debugCanvasContext.fillText("State: " + debugObjectsToDisplay[i].state, labelX + labelPaddingHorizontal, labelY + itemPadding + labelPaddingVertical, labelWidth);
+
+                this._debugCanvasContext.fillStyle = "Cornsilk";
+                this._debugCanvasContext.fillText(
+                    "X: " + Math.round(debugObjectsToDisplay[i].position.x * 100) / 100
+                    + " Y: " + Math.round(debugObjectsToDisplay[i].position.y * 100) / 100
+                    + " Z: " + Math.round(debugObjectsToDisplay[i].position.z * 100) / 100
+                , labelX + labelPaddingHorizontal, labelY + (itemPadding * 2) + labelPaddingVertical, labelWidth)
+            }
+        }
+    }
+
+    /**
      * Update render size
      */
     _updateRenderSize(width, height) {
@@ -753,8 +883,12 @@ GF.Game = class Game extends GF.StateMachine {
         this._renderer.domElement.style.width = width + 'px';
         this._renderer.domElement.style.height = height  + 'px';
 
-        this._rendererSize = new THREE.Vector2();
-        this._renderer.getSize(this._rendererSize);
+        if (this._debug) {
+            this._debugCanvas.style.width = width + 'px';
+            this._debugCanvas.style.height = height  + 'px';
+            this._debugCanvas.width = width;
+            this._debugCanvas.height = height;
+        }
     }
 
     /**
@@ -865,6 +999,11 @@ GF.Game = class Game extends GF.StateMachine {
         }
 
         this.collisionManager._update();
+
+        // display debug info
+        if (this._debug) {
+            this._updateDebugCanvas();
+        }
     }
 
     /**

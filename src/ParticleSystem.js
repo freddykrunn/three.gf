@@ -66,32 +66,41 @@ function getParticleMaterial(game, texture, color, opacity, isParticlePositionLo
 GF.ParticleSystem = class ParticleSystem extends GF.GameObject {
 
     /**
-     * Constructor
-	 * @param {number} color the color of the particles
-	 * @param {number} texture the texture of the particles
-	 * @param {number} maxParticleCount the max number of particles at a time
-	 * @param {number} size the size of the particles
-	 * @param {THREE.Vector3} velocity the velocity applied to each particle
-	 * @param {number} lifetime the lifetime of each particle
-	 * @param {number} spawnDelay the delay between each particle spawn 'tick'
-	 * @param {number} spawnCount the count of particles spawn at each spawn 'tick'
-	 * @param {THREE.Vector3} spawnBox spawn box (sizeX, sizeY, sizeZ)
+     * Particle System
+	 * 
+	 * @param {object} params the params to build the particle system:
+	 * 
+	 * {
+	 *   {number} color : the color of the particles
+	 *   {number} opacity : the color of the particles
+	 *   {number} texture : the texture of the particles
+	 *   {number} particleCount : the max number of particles at a time
+	 *   {number} size : the size of the particles
+	 *   {THREE.Vector3} velocity : the velocity applied to each particle
+	 *   {number} lifetime : the lifetime of each particle
+	 *   {number} spawnDelay : the delay between each particle spawn 'tick'
+	 *   {number} spawnCount : the count of particles spawn at each spawn 'tick'
+	 *   {THREE.Vector3} spawnBox : spawn box (sizeX, sizeY, sizeZ)
+	 *   {boolean} isParticlePositionLocal : if particles are positioned relative to the world or to the local particle system origin
+	 *   {boolean} hasSizeAttenuation : if particles size will be reduced along with the life time
+	 *   {THREE.Vector3} offset : particles position offset
+	 * }
      */
-	constructor(color, opacity, texture, maxParticleCount, size, velocity, lifetime, spawnDelay, spawnCount, spawnBox, isParticlePositionLocal, hasSizeAttenuation, offset) {
+	constructor(params) {
 		super(new THREE.Object3D(), null, false);
-		this.color = color != null ? color : 0xFFFFFF;
-		this.opacity = opacity;
-		this.texture = texture;
-		this.maxParticleCount = maxParticleCount != null ? maxParticleCount : 100;
-		this.size = size != null ? size : 1;
-		this.velocity = velocity != null ? velocity : new THREE.Vector3(0,0,0);
-		this.lifetime = lifetime != null ? lifetime : 1000;
-		this.spawnDelay = spawnDelay != null ? spawnDelay : 500;
-		this.spawnCount = spawnCount != null ? spawnCount : 1;
-		this.spawnBox = spawnBox != null ? spawnBox : new THREE.Vector3(0,0,0);
-		this.isParticlePositionLocal = isParticlePositionLocal != null ? isParticlePositionLocal : false;
-		this.hasSizeAttenuation = hasSizeAttenuation != null ? hasSizeAttenuation : false;
-		this.offset = offset != null ? offset : new THREE.Vector3(0,0,0);
+		this.color = params.color != null ? params.color : 0xFFFFFF;
+		this.opacity = params.opacity;
+		this.texture = params.texture;
+		this.maxParticleCount = params.particleCount != null ? params.particleCount : 100;
+		this.size = params.size != null ? params.size : 1;
+		this.velocity = params.velocity != null ? params.velocity : new THREE.Vector3(0,0,0);
+		this.lifetime = params.lifetime != null ? params.lifetime : 1000;
+		this.spawnDelay = params.spawnDelay != null ? params.spawnDelay : 0;
+		this.spawnCount = params.spawnCount != null ? params.spawnCount : 1;
+		this.spawnBox = params.spawnBox != null ? params.spawnBox : new THREE.Vector3(0,0,0);
+		this.isParticlePositionLocal = params.isParticlePositionLocal != null ? params.isParticlePositionLocal : false;
+		this.hasSizeAttenuation = params.hasSizeAttenuation != null ? params.hasSizeAttenuation : false;
+		this.offset = params.offset != null ? params.offset : new THREE.Vector3(0,0,0);
 	}
 
 	/**

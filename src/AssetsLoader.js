@@ -595,27 +595,24 @@ GF.FBXFileLoader = class FBXFileLoader extends GF.FileLoader {
 GF.SoundFileLoader = class SoundFileLoader extends GF.FileLoader {
     constructor(type) {
         super(type);
+        this.audioLoader = new THREE.AudioLoader();
     }
 
     /**
      * Load
-     * @param {string} params 
+     * @param {string} path 
      * @param {function} onFinish 
      * @param {function} onError 
      */
-    load(params, onFinish, onError) {
-        var sound = new Howl({
-            src: params.path,
-            loop: params.loop,
-            volume: params.volume,
-            rate: params.rate,
-            preload: true,
-            onload: function() {
-                onFinish(sound);
-            },
-            onloaderror: function(err) {
-                onError(err);
-            },
+    load(path, onFinish, onError) {
+        // load a sound
+        this.audioLoader.load( path,
+        function( buffer ) {
+            onFinish(buffer);
+        },
+        null,
+        function ( err ) {
+            onError(err);
         });
     }
 }

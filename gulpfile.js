@@ -7,7 +7,7 @@ const plumber = require("gulp-plumber");
 const fs = require("fs");
 
 
-gulp.task('minify', function() {
+gulp.task('build-dist', function() {
     const filesArray = [];
 
     filesArray.push(...[
@@ -65,7 +65,6 @@ gulp.task('minify', function() {
          * 
          * @credits for three.js - Copyright © 2010-2021 Three.js authors (MIT License)
          * @credits for THREEx.KeyboardState.js - Copyright (c) 2013 Jerome Etienne (MIT License)
-         * @credits for howler.js - Copyright (c) 2013-2018, James Simpson of GoldFire Studios (MIT License)
          * @credits for w3.js - W3.JS 1.01 Jan 2017 by w3schools.com (No License)
          */
         var GF={};var THREEx={};

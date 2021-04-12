@@ -8,6 +8,7 @@ GF.CollisionManager = class CollisionManager {
         this._game = game;
         this._collisionVolumes = {};
         this._collisionVolumesDictionaryKeys = [];
+        this._collisionVolumesDebugHelpers = {};
         this._contacts = [];
         this._raycaster = new THREE.Raycaster();
     }
@@ -101,6 +102,8 @@ GF.CollisionManager = class CollisionManager {
                 volume.gameObject.object3D.position.y + volume.shape.offset[1],
                 volume.gameObject.object3D.position.z + volume.shape.offset[2]
             ];
+
+            this._updateVolumeDebugBoxPosition(volume.id);
         }
     }
 
@@ -181,6 +184,7 @@ GF.CollisionManager = class CollisionManager {
                                 c.volume1.gameObject.speed.z = Math.abs(c.collisionSpeed01[2]) < MIN_COLLISION_FORCE_SPEED ? 0 : c.collisionSpeed01[2];
                                 c.volume1.gameObject.object3D.position.z = ((c.volume1.shape.sizeHalf[2] - c.volume1.shape.offset[2]) * c.normal01[2]) + c.point[2];
                             }
+                            c.volume1.gameObject.isColliding = true;
                         }
 
                         // truncate object position and apply collision speed
@@ -197,6 +201,7 @@ GF.CollisionManager = class CollisionManager {
                                 c.volume2.gameObject.speed.z = Math.abs(c.collisionSpeed02[2]) < MIN_COLLISION_FORCE_SPEED ? 0 : c.collisionSpeed02[2];
                                 c.volume2.gameObject.object3D.position.z = ((c.volume2.shape.sizeHalf[2] - c.volume2.shape.offset[2]) * c.normal02[2]) + c.point[2];
                             }
+                            c.volume2.gameObject.isColliding = true;
                         }
 
                     } else {
@@ -214,6 +219,46 @@ GF.CollisionManager = class CollisionManager {
             }
 
             c = c.next;
+        }
+    }
+
+    /**
+     * Activate debug mode
+     */
+    _activateDebugMode(activate) {
+        if (activate) {
+            // add box helpers
+            for (const id of this._collisionVolumesDictionaryKeys) {
+                if (!this._game.scene.children.find(c => c == this._collisionVolumesDebugHelpers[id])) {
+                    this._game.scene.add(this._collisionVolumesDebugHelpers[id]);
+
+                    this._updateVolumeDebugBoxPosition(id);
+                }
+            }
+            this._debug = true;
+        } else {
+            // remove box helpers
+            for (const id of this._collisionVolumesDictionaryKeys) {
+                if (this._collisionVolumesDebugHelpers[id]) {
+                    this._game.scene.remove(this._collisionVolumesDebugHelpers[id]);
+                }
+            }
+            this._debug = false;
+        }
+    }
+
+    /**
+     * Update volume debug box position
+     * @param {string} id 
+     */
+    _updateVolumeDebugBoxPosition(id) {
+        if (this._debug && this._collisionVolumesDebugHelpers[id] != null) {
+            this._collisionVolumesDebugHelpers[id].object.position.set(
+                this._collisionVolumes[id].position[0],
+                this._collisionVolumes[id].position[1],
+                this._collisionVolumes[id].position[2]
+            );
+            this._collisionVolumesDebugHelpers[id].update();
         }
     }
 
@@ -343,8 +388,11 @@ GF.CollisionManager = class CollisionManager {
             solid: affectedGroups != null ? affectedGroups.includes("solid") : true,
             shape: volume,
             affectedGroups: this._convertAffectedCollisionGroupsToHex(affectedGroups),
-            position: [position.x, position.y, position.z],
-            next: null
+            position: [
+                position.x + volume.offset[0],
+                position.y + volume.offset[1],
+                position.z + volume.offset[2]
+            ]
         };
 
         // add contacts
@@ -372,6 +420,20 @@ GF.CollisionManager = class CollisionManager {
         this._collisionVolumes[newVolume.id] = newVolume;
         this._collisionVolumesDictionaryKeys = Object.keys(this._collisionVolumes);
 
+        // add volume box helper (debug)
+        const boxObject = new THREE.Mesh( new THREE.BoxGeometry(
+            newVolume.shape.size[0],
+            newVolume.shape.size[1],
+            newVolume.shape.size[2])
+        );
+        this._collisionVolumesDebugHelpers[newVolume.id] = new THREE.BoxHelper( boxObject, newVolume.solid ? 0xff8800 : 0xffff00 );
+
+        this._updateVolumeDebugBoxPosition(newVolume.id);
+        
+        if (this._debug) {
+            this._game.scene.add(this._collisionVolumesDebugHelpers[newVolume.id]);
+        }
+
         return newVolume;
     }
 
@@ -386,6 +448,8 @@ GF.CollisionManager = class CollisionManager {
             position.y + this._collisionVolumes[id].shape.offset[1],
             position.z + this._collisionVolumes[id].shape.offset[2]
         ];
+
+        this._updateVolumeDebugBoxPosition(id)
     }
 
     /**
@@ -403,6 +467,15 @@ GF.CollisionManager = class CollisionManager {
         // remove volume
         delete this._collisionVolumes[id];
         this._collisionVolumesDictionaryKeys = Object.keys(this._collisionVolumes);
+
+        // remove box helper (debug)
+        if (this._collisionVolumesDebugHelpers[id] != null) {
+            if (this._debug) {
+                this._game.scene.remove(this._collisionVolumesDebugHelpers[id]);
+                
+            }
+            delete this._collisionVolumesDebugHelpers[id];
+        }
     }
 
     //#region contact checks
