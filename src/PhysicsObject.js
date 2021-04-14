@@ -27,8 +27,6 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
         this.useRayCollision = params.useRayCollision;
         this.rayCollisionHeight = params.rayCollisionHeight != null ? params.rayCollisionHeight : 1;
         this.rayCollisionMinStepHeight = params.rayCollisionMinStepHeight != null ? params.rayCollisionMinStepHeight : 0.1;
-
-        this.collisionVolume = collisionVolume;
         this.dynamic = params.dynamic;
         this.mass = params.mass != null ? params.mass : 1;
         this.restitution = params.restitution != null ? params.restitution : 0.01;
@@ -39,6 +37,7 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
         this.rotationMatchesDirection = params.rotationMatchesDirection != null ? params.rotationMatchesDirection : false;
 
         // internal properties
+        this._collisionVolume = collisionVolume;
         this._affectedCollisionGroups = params.collisionGroups != null ? params.collisionGroups : [];
         if (params.solid) {
             this._affectedCollisionGroups.splice(0, 0, "solid");
@@ -150,7 +149,7 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
                     if (this.speed.y < 0) {
                         this.speed.y = 0;
                     }
-                    this.isColliding = true;
+                    this._isColliding = true;
 
                     if (this.floorCollision.point.y - this.object3D.position.y < this.rayCollisionMinStepHeight) {
                         this.object3D.position.y = this.floorCollision.point.y;
@@ -177,7 +176,7 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
         }
 
         // apply kinetic friction
-        if (this.speed.length() > 0 && this.isColliding && this.kineticCollisionFriction > 0) {
+        if (this.speed.length() > 0 && this._isColliding && this.kineticCollisionFriction > 0) {
             // Ff = u * Fn ; Fn = m * g;
             this._frictionVector.copy(this.speed);
             this._frictionVector.normalize();
@@ -214,7 +213,8 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
 
         this._resultForce.set(0, 0, 0);
 
-        this.isColliding = false;
+        this._isColliding = false;
+        this._collisionNormal = new THREE.Vector3(0,0,0);
     }
 
     /**
@@ -349,18 +349,23 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
         this._acceleration = new THREE.Vector3(0,0,0);
         this._frictionVector = new THREE.Vector3(0,0,0);
         super.onInit();
-        this._registerSpeedHistory();
-        this._registerPositionHistory();
+        for (var i = 0; i < MAX_SPEED_HISTORY; i++) {
+            this._registerSpeedHistory();
+            this._registerPositionHistory();
+        }
 
-        if (this.collisionVolume == null) {
-            this.collisionVolume = GF.Utils.buildCollisionVolumeFrom3DObject(this.object3D);
+        if (this._collisionVolume == null) {
+            this._collisionVolume = GF.Utils.buildCollisionVolumeFrom3DObject(this.object3D);
         }
         
-        if (this.collisionVolume != null) {
-            this.collisionVolumeReference = this.collision.addVolume(this, this.collisionVolume, this.object3D.position, true, this._affectedCollisionGroups).id;
+        if (this._collisionVolume != null) {
+            this._collisionVolumeReference = this.collision.addVolume(this, this._collisionVolume, this.object3D.position, true, this._affectedCollisionGroups).id;
         }
 
         this.lag = 0;
+
+        this._isColliding = false;
+        this._collisionNormal = new THREE.Vector3(0,0,0);
     }
 
     /**
@@ -374,8 +379,8 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
      * Destroy
      */
     onDestroy() {
-        if (this.collisionVolumeReference) {
-            this.collision.removeVolume(this.collisionVolumeReference);
+        if (this._collisionVolumeReference) {
+            this.collision.removeVolume(this._collisionVolumeReference);
         }
     }
 }

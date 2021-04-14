@@ -769,3 +769,248 @@ const PADDLE_SPEED = 3 // 3 m/s
     
 return Promise.resolve(true);
 });
+
+gulp.task('init-physics-example', function() {  
+    var dir = "template/";
+    fs.mkdirSync(dir);
+  
+    fs.mkdirSync(dir + "src");
+    fs.mkdirSync(dir + "src/objects");
+
+    fs.copyFile("dist/jgf.min.js", dir + "/jgf.min.js", (err) => { 
+        if (err) { 
+            console.log("Error:", err); 
+        }
+    }); 
+
+// write main file
+fs.writeFileSync(dir + 'main.js', `  
+/**
+ * On page load
+ */
+function onPageLoad() {
+    var controller = new GF.GameController("#main-container",
+        {
+            params: {
+                antialias: true,
+                aspectRatio: GF.ASPECT_RATIO._16_9,
+                shadows: true,
+                shadowMapType: THREE.PCFSoftShadowMap,
+                camera: {
+                    type: GF.CAMERA_TYPE.PERSPECTIVE,
+                    fov: 45,
+                    near: 0.1,
+                    far: 100
+                }
+            },
+            onStart: onStart,
+            onUpdate: onUpdate,
+            onStop: onStop
+        },
+        [],
+		{
+            objects: [
+                "ball"
+            ],
+            pages: [
+            ]
+        },
+		// after load source files callback
+		() => {
+			// boot (as there are no assets to load we can do a direct game boot 'default-no-assets')
+            controller.boot('default-no-assets');
+        }
+    );
+}
+
+/**
+ * Game init
+ */
+function onStart() {
+    // game floor
+    var gameFloor = GF.Utils.build3DObject(this.loader, {
+        model: {
+            type: "box",
+            size: {x: 40, y: 1, z: 26}
+        },
+        material: {
+            type: "phong",
+            color: "rgb(130, 130, 130)",
+            shininess: 5
+        },
+        shadows: {
+            cast: false,
+            receive: true
+        },
+        position: {x: 0, y: 0, z: 0}
+    });
+
+    this.addToScene(gameFloor);
+    this.collisionManager.addVolume(null, GF.Utils.buildCollisionVolumeFrom3DObject(gameFloor), {x: 0, y: 0, z: 0}, false);
+
+    // collision walls
+    this.collisionManager.addVolume(null, new GF.CollisionVolume(GF.COLLISION_BOX, [1, 8, 26]), {x: 20, y: 4, z: 0}, false);
+    this.collisionManager.addVolume(null, new GF.CollisionVolume(GF.COLLISION_BOX, [1, 8, 26]), {x: -20, y: 4, z: 0}, false);
+    this.collisionManager.addVolume(null, new GF.CollisionVolume(GF.COLLISION_BOX, [40, 8, 1]), {x: 0, y: 4, z: -12.5}, false);
+    this.collisionManager.addVolume(null, new GF.CollisionVolume(GF.COLLISION_BOX, [40, 8, 1]), {x: 0, y: 4, z: 12.5}, false);
+
+    // set environment lighting
+    this.setEnvironmentLight({
+        sun: {
+            color: 0xffffff,
+            intensity: 0.5,
+            direction: {x: 1, y: 1, z: -1},
+            distance: 20,
+            shadow: true
+        },
+        ambient: {
+            skyColor: 0xffffff,
+            groundColor: 0xFFFFBB,
+            intensity: 0.45
+        }
+    })
+
+    // ball
+    this.addObject(new Ball({x: 0, y: 2, z: 0}, true));
+    for (var i = 0; i < 10; i++) {
+        this.addObject(new Ball({x: (Math.random() * 35) - 17.5, y: 2 + (Math.random() * 2), z: (Math.random() * 20) - 10}));
+    }
+
+    // set initial camera position and target
+    this.setCamera({x: 0, y: 30, z: 30}, {x: 0, y: 0, z: 0});
+}
+
+/**
+ * Game update
+ */
+function onUpdate(delta) {
+}
+
+/**
+ * Game destroy
+ */
+function onStop() {
+}
+
+`);
+  
+// write index file
+fs.writeFileSync(dir + 'index.html', `
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+            body {
+                padding: 0;
+                margin: 0;
+                background: black;
+                user-select: none;
+            }
+
+            #main-container {
+                width: 100vw;
+                height: 100vh;
+                max-width: 100vw;
+                max-height: 100vh;
+                overflow: hidden;
+            }
+        </style>
+    </head>
+    <body onload="onPageLoad()">
+        <!-- Main container -->
+        <div id="main-container"></div>
+        <!-- Framework-->
+        <script src="jgf.min.js" type="text/javascript"></script>
+        <!-- Main -->
+        <script src="main.js" type="text/javascript"></script>
+    </body>
+</html>
+`);
+  
+// write game ball object file
+fs.writeFileSync(dir + '/src/objects/ball.js', `
+const BALL_SPEED = 25;
+
+/**
+ * Ball
+ */
+class Ball extends GF.PhysicsObject {
+    constructor(position, controls) {
+        super({
+            model: {
+                type: "sphere",
+                radius: 0.5
+            },
+            material: {
+                type: "phong",
+                color: controls ? "rgb(255, 100, 100)" : "rgb(255, 255, 100)",
+                shininess: 50
+            },
+            position: position,
+            shadows: {
+                cast: true,
+                receive: true
+            }
+        },
+        null,
+        {
+            solid: true,
+            dynamic: true,
+            gravity: true,
+            collisionFriction: 0.2,
+            mass: 1,
+            restitution: 0.7
+        });
+        this.controls = controls;
+    }
+
+    /**
+     * On init
+     */
+    onInit() {
+        super.onInit();
+        this.speed.set(Math.random() * 15, 25, Math.random() * 15);
+
+        if (this.controls) {
+            this.onKey("d", GF.KeyPressState.RELEASED, () => {
+                if (this.game.isInDebug()) {
+                    this.game.activateDebugMode(false)
+                } else {
+                    this.game.activateDebugMode(true, {showCollisionBoxes: true, showLabels: false})
+                }
+            });
+
+            this.onKey("space", GF.KeyPressState.PRESSED, () => {
+                this.applyForce({x: 0, y: 20000, z: 0})
+            });
+        }
+    }
+
+    /**
+     * On update 
+     * (Called every frame)
+     * @param delta the time interval of the frame in milliseconds
+     */
+    onUpdate(delta) {
+        if (this.controls) {
+            if (this.input.isPressed("up")) {
+                this.applyForce({x: 0, y: 0, z: -350})
+            }
+            else if (this.input.isPressed("down")) {
+                this.applyForce({x: 0, y: 0, z: 350})
+            }
+
+            if (this.input.isPressed("left")) {
+                this.applyForce({x: -350, y: 0, z: 0})
+            }
+            else if(this.input.isPressed("right")) {
+                this.applyForce({x: 350, y: 0, z: 0})
+            }
+        }
+    }
+}
+
+`);
+    
+return Promise.resolve(true);
+});

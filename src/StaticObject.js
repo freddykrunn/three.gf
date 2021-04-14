@@ -28,12 +28,12 @@
     onInit() {
         super.onInit();
 
-        if (this.collisionVolume == null && this._generateCollisionVolume) {
-            this.collisionVolume = GF.Utils.buildCollisionVolumeFrom3DObject(this.object3D);
+        if (this._collisionVolume == null && this._generateCollisionVolume) {
+            this._collisionVolume = GF.Utils.buildCollisionVolumeFrom3DObject(this.object3D);
         }
 
-        if (this.collisionVolume != null) {
-            this.collisionVolumeReference = this.collision.addVolume(this, this.collisionVolume, this.object3D.position, true, this._affectedCollisionGroups).id;
+        if (this._collisionVolume != null) {
+            this._collisionVolumeReference = this.collision.addVolume(this, this._collisionVolume, this.object3D.position, true, this._affectedCollisionGroups).id;
         }
     }
 
@@ -41,8 +41,8 @@
      * Destroy
      */
     onDestroy() {
-        if (this.collisionVolumeReference) {
-            this.collision.removeVolume(this.collisionVolumeReference);
+        if (this._collisionVolumeReference) {
+            this.collision.removeVolume(this._collisionVolumeReference);
         }
     }
 

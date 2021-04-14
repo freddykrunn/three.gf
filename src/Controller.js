@@ -22,7 +22,18 @@ GF.GRAPHICS_PRESET_PARAMS = {
         resolution: {
             w: 320,
             h: 240
-        }
+        },
+        requiredMaterial: "lambert",
+        imageRendering: "pixelated",
+        textures: {
+            minFilter: THREE.NearestFilter,
+            magFilter: THREE.NearestFilter,
+            generateMipmaps: false
+        },
+        antialias: false,
+        precision: "lowp",
+        shadowsAllowed: false,
+        useOutlineEffect: false
     }
 }
 
@@ -162,8 +173,11 @@ GF.GameController = class GameController {
         this._aspectRatio = this.game._aspectRatio != null ? this.game._aspectRatio : GF.ASPECT_RATIO._16_9;
 
         // preset
-        if (this.game._graphicsPreset === GF.GRAPHICS_PRESET.PS1_Style) {
-            this._gameCanvas.style.imageRendering = "pixelated";
+        if (this.game._graphicsPreset) {
+            this.assets.setGraphicsPreset(this.game._graphicsPreset);
+            if (GF.GRAPHICS_PRESET_PARAMS[this.game._graphicsPreset]) {
+                this._gameCanvas.style.imageRendering = GF.GRAPHICS_PRESET_PARAMS[this.game._graphicsPreset].imageRendering;
+            }
         }
 
         // page manager

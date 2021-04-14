@@ -362,10 +362,10 @@ GF.TextureFileLoader = class TextureFileLoader extends GF.FileLoader {
                         object[param] = params[param];
                     }
 
-                    if (this.gameGraphicsPreset === GF.GRAPHICS_PRESET.PS1_Style) {
-                        object["minFilter"] = THREE.NearestFilter;
-                        object["magFilter"] = THREE.NearestFilter;
-                        object["generateMipmaps"] = false;
+                    if (GF.GRAPHICS_PRESET_PARAMS[this.gameGraphicsPreset] && GF.GRAPHICS_PRESET_PARAMS[this.gameGraphicsPreset].textures) {
+                        object["minFilter"] = GF.GRAPHICS_PRESET_PARAMS[this.gameGraphicsPreset].textures.minFilter;
+                        object["magFilter"] = GF.GRAPHICS_PRESET_PARAMS[this.gameGraphicsPreset].textures.magFilter;
+                        object["generateMipmaps"] = GF.GRAPHICS_PRESET_PARAMS[this.gameGraphicsPreset].textures.generateMipmaps;
                     }
                 }
                 onFinish(object);
@@ -423,9 +423,9 @@ GF.CubeTextureFileLoader = class CubeTextureFileLoader extends GF.FileLoader {
                     textureCube.mapping = params.mapping;
                 }
 
-                if (this.gameGraphicsPreset === GF.GRAPHICS_PRESET.PS1_Style) {
-                    textureCube["minFilter"] = THREE.NearestFilter;
-                    textureCube["magFilter"] = THREE.NearestFilter;
+                if (GF.GRAPHICS_PRESET_PARAMS[this.gameGraphicsPreset] != null && GF.GRAPHICS_PRESET_PARAMS[this.gameGraphicsPreset].textures) {
+                    textureCube["minFilter"] = GF.GRAPHICS_PRESET_PARAMS[this.gameGraphicsPreset].textures.minFilter;
+                    textureCube["magFilter"] = GF.GRAPHICS_PRESET_PARAMS[this.gameGraphicsPreset].textures.magFilter;
                 }
 
                 onFinish(textureCube);

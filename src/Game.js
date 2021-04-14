@@ -87,11 +87,11 @@ GF.Game = class Game extends GF.StateMachine {
 
         this._aspectRatio = params.aspectRatio;
         this._graphicsPreset = params.graphicsPreset;
-        if (this._graphicsPreset === GF.GRAPHICS_PRESET.PS1_Style) {
-            params.antialias = false;
-            params.precision = "lowp";
-            params.shadows = false;
-            this._useOutlineEffect = false;
+        if (this._graphicsPreset != null && GF.GRAPHICS_PRESET_PARAMS[this._graphicsPreset] != null) {
+            params.antialias = GF.GRAPHICS_PRESET_PARAMS[this._graphicsPreset].antialias;
+            params.precision = GF.GRAPHICS_PRESET_PARAMS[this._graphicsPreset].precision;
+            params.shadows = GF.GRAPHICS_PRESET_PARAMS[this._graphicsPreset].shadowsAllowed;
+            this._useOutlineEffect = GF.GRAPHICS_PRESET_PARAMS[this._graphicsPreset].useOutlineEffect;
         }
 
         // game speed
@@ -872,9 +872,9 @@ GF.Game = class Game extends GF.StateMachine {
      */
     _updateRenderSize(width, height) {
         var w, h;
-        if (this._graphicsPreset === GF.GRAPHICS_PRESET.PS1_Style) {
-            w = GF.GRAPHICS_PRESET_PARAMS[GF.GRAPHICS_PRESET.PS1_Style].resolution.w;
-            h = GF.GRAPHICS_PRESET_PARAMS[GF.GRAPHICS_PRESET.PS1_Style].resolution.h;
+        if (GF.GRAPHICS_PRESET_PARAMS[this._graphicsPreset] && GF.GRAPHICS_PRESET_PARAMS[this._graphicsPreset].resolution) {
+            w = GF.GRAPHICS_PRESET_PARAMS[this._graphicsPreset].resolution.w;
+            h = GF.GRAPHICS_PRESET_PARAMS[this._graphicsPreset].resolution.h;
         } else {
             w = width * this._resolutionRatio;
             h = height * this._resolutionRatio;

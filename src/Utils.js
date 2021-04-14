@@ -114,13 +114,21 @@ GF.Utils = {
         if (typeof(params) === "string") {
             material = loader.get(params);
         } else {
-            if (params.type === "phong") {
+            // use required material if a preset is defined
+            var matType = params.type;
+            if (loader.gameGraphicsPreset != null) {
+                if (GF.GRAPHICS_PRESET_PARAMS[loader.gameGraphicsPreset] != null && GF.GRAPHICS_PRESET_PARAMS[loader.gameGraphicsPreset].requiredMaterial) {
+                    matType = GF.GRAPHICS_PRESET_PARAMS[loader.gameGraphicsPreset].requiredMaterial
+                }
+            }
+
+            if (matType === "phong") {
                 material = new THREE.MeshPhongMaterial()
-            } else if (params.type === "lambert") {
+            } else if (matType === "lambert") {
                 material = new THREE.MeshLambertMaterial();
-            } else if (params.type === "basic") {
+            } else if (matType === "basic") {
                 material = new THREE.MeshBasicMaterial();
-            } else if (params.type === "toon") {
+            } else if (matType === "toon") {
                 material = new THREE.MeshToonMaterial();
             } else {
                 material = new THREE.MeshBasicMaterial();
@@ -195,7 +203,7 @@ GF.Utils = {
             object3D.geometry.boundingBox.getSize(size);
             object3D.geometry.boundingBox.getCenter(offset);
 
-            if (sizeMultiplier > 0) {
+            if (sizeMultiplier != null) {
                 size.multiplyScalar(sizeMultiplier)
             }
 

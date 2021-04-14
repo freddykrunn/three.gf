@@ -1,4 +1,4 @@
-const MIN_COLLISION_FORCE_SPEED = 0.2;
+const MIN_COLLISION_FORCE_SPEED = 4;
 
 /**
  * CollisionManager
@@ -11,6 +11,10 @@ GF.CollisionManager = class CollisionManager {
         this._collisionVolumesDebugHelpers = {};
         this._contacts = [];
         this._raycaster = new THREE.Raycaster();
+
+        this._posDiff = null;
+        this._diff = null;
+        this._sign = null;
     }
 
     //#region Internal
@@ -21,42 +25,38 @@ GF.CollisionManager = class CollisionManager {
      * @param {GF.CollisionVolume} volume2
      */
     _calculateIntersectionOfVolumes(volume1, volume2) {
-        var posDiff = [
+        this._posDiff = [
             volume1.position[0] - volume2.position[0],
             volume1.position[1] - volume2.position[1],
             volume1.position[2] - volume2.position[2]
         ];
 
-        var diff = [
-            (volume1.shape.sizeHalf[0] + volume2.shape.sizeHalf[0]) - Math.abs(posDiff[0]),
-            (volume1.shape.sizeHalf[1] + volume2.shape.sizeHalf[1]) - Math.abs(posDiff[1]),
-            (volume1.shape.sizeHalf[2] + volume2.shape.sizeHalf[2]) - Math.abs(posDiff[2])
+        this._diff = [
+            (volume1.shape.sizeHalf[0] + volume2.shape.sizeHalf[0]) - Math.abs(this._posDiff[0]),
+            (volume1.shape.sizeHalf[1] + volume2.shape.sizeHalf[1]) - Math.abs(this._posDiff[1]),
+            (volume1.shape.sizeHalf[2] + volume2.shape.sizeHalf[2]) - Math.abs(this._posDiff[2])
         ]
 
-        var sign;
-        if (diff[0] >= 0 && diff[1] >= 0 && diff[2] >= 0){
-            if (diff[0] <= diff[1] && diff[0] <= diff[2]){
-                sign = Math.sign(posDiff[0]);
+        if (this._diff[0] >= 0 && this._diff[1] >= 0 && this._diff[2] >= 0){
+            if (this._diff[0] <= this._diff[1] && this._diff[0] <= this._diff[2]){
+                this._sign = Math.sign(this._posDiff[0]);
                 return [
-                    [sign, 0, 0], // normal 1
-                    [-sign, 0, 0], // normal 2
-                    [volume2.position[0] + (volume2.shape.sizeHalf[0] * sign), 0, 0] // point
+                    [this._sign, 0, 0], // normal 1
+                    [-this._sign, 0, 0], // normal 2
                 ];
             }
-            else if (diff[1] <= diff[2]){
-                sign = Math.sign(posDiff[1]);
+            else if (this._diff[1] <= this._diff[2]){
+                this._sign = Math.sign(this._posDiff[1]);
                 return [
-                    [0, sign, 0], // normal 1
-                    [0, -sign, 0], // normal 2
-                    [0, volume2.position[1] + (volume2.shape.sizeHalf[1] * sign), 0] // point
+                    [0, this._sign, 0], // normal 1
+                    [0, -this._sign, 0], // normal 2
                 ];
             }
             else{
-                sign = Math.sign(posDiff[2]);
+                this._sign = Math.sign(this._posDiff[2]);
                 return [
-                    [0, 0, sign], // normal 1
-                    [0, 0, -sign], // normal 2
-                    [0, 0, volume2.position[2] + (volume2.shape.sizeHalf[2] * sign)] // point
+                    [0, 0, this._sign], // normal 1
+                    [0, 0, -this._sign], // normal 2
                 ];
             }
         }
@@ -103,7 +103,35 @@ GF.CollisionManager = class CollisionManager {
                 volume.gameObject.object3D.position.z + volume.shape.offset[2]
             ];
 
-            this._updateVolumeDebugBoxPosition(volume.id);
+            if (this._debug) {
+                this._updateVolumeDebugBoxPosition(volume.id);
+            }
+        }
+    }
+
+    /**
+     * Apply collision impulse on object
+     */
+    _applyImpulseOnObject(normal, collisionSpeed, collisionDistance, gameObject, otherVolumePosition) {
+        // truncate object position and apply collision speed
+        if (gameObject != null && gameObject.dynamic === true && gameObject.speed != null) {
+            // truncate object position
+            if (normal[0] != 0) {
+                gameObject.speed.x = collisionSpeed[0];
+                gameObject.object3D.position.x = (normal[0] * collisionDistance[0]) + otherVolumePosition[0];
+                gameObject._collisionNormal.x += normal[0];
+            }
+            if (normal[1] != 0) {
+                gameObject.speed.y = collisionSpeed[1];
+                gameObject.object3D.position.y = (normal[1] * collisionDistance[1]) + otherVolumePosition[1];
+                gameObject._collisionNormal.y += normal[1];
+            }
+            if (normal[2] != 0) {
+                gameObject.speed.z = collisionSpeed[2];
+                gameObject.object3D.position.z = (normal[2] * collisionDistance[2]) + otherVolumePosition[2];
+                gameObject._collisionNormal.z += normal[2];
+            }
+            gameObject._isColliding = true;
         }
     }
 
@@ -111,7 +139,7 @@ GF.CollisionManager = class CollisionManager {
      * Update
      */
     _update() {
-        var c, relativeVelocity, collisionSpeedMagnitude, impulse, intersection, mass01, mass02, restitution01, restitution02;
+        var c, relativeVelocity, collisionSpeedMagnitude, impulse, intersection, mass01, mass02, restitution;
 
         // calculate intersection
         c = this._contacts[0];
@@ -126,25 +154,27 @@ GF.CollisionManager = class CollisionManager {
                 c.touching = true;
                 c.normal01 = intersection[0];
                 c.normal02 = intersection[1];
-                c.point = intersection[2];
 
                 // if any of the objects are Physics Objects and both collision volumes are solid, calculate collision speed
                 if (c.volume1.solid && c.volume2.solid && ((c.volume1.gameObject != null && c.volume1.gameObject.speed != null) || (c.volume2.gameObject != null && c.volume2.gameObject.speed != null))) {
                     relativeVelocity = [
-                        (c.volume1.gameObject != null && c.volume1.gameObject.speed != null ? c.volume1.gameObject.speed.x : 0) - (c.volume2.gameObject != null && c.volume2.gameObject.speed != null ? c.volume2.gameObject.speed.x : 0),
-                        (c.volume1.gameObject != null && c.volume1.gameObject.speed != null ? c.volume1.gameObject.speed.y : 0) - (c.volume2.gameObject != null && c.volume2.gameObject.speed != null ? c.volume2.gameObject.speed.y : 0),
-                        (c.volume1.gameObject != null && c.volume1.gameObject.speed != null ? c.volume1.gameObject.speed.z : 0) - (c.volume2.gameObject != null && c.volume2.gameObject.speed != null ? c.volume2.gameObject.speed.z : 0)
+                        (c.volume1.gameObject != null ? c.volume1.gameObject.speed.x : 0) - (c.volume2.gameObject != null ? c.volume2.gameObject.speed.x : 0),
+                        (c.volume1.gameObject != null ? c.volume1.gameObject.speed.y : 0) - (c.volume2.gameObject != null ? c.volume2.gameObject.speed.y : 0),
+                        (c.volume1.gameObject != null ? c.volume1.gameObject.speed.z : 0) - (c.volume2.gameObject != null ? c.volume2.gameObject.speed.z : 0)
                     ];
-    
+
                     collisionSpeedMagnitude = relativeVelocity[0] * c.normal01[0]
                                 + relativeVelocity[1] * c.normal01[1]
                                 + relativeVelocity[2] * c.normal01[2];
+
                     // restitution
-                    restitution01 = c.volume1.gameObject != null && c.volume1.gameObject.restitution != null ? c.volume1.gameObject.restitution : 1;
-                    restitution02 = c.volume2.gameObject != null && c.volume2.gameObject.restitution != null ? c.volume2.gameObject.restitution : 1;
-                    collisionSpeedMagnitude *= Math.min(restitution01, restitution02);
+                    restitution = Math.min(
+                        c.volume1.gameObject != null && c.volume1.gameObject.restitution != null ? c.volume1.gameObject.restitution : 1,
+                        c.volume2.gameObject != null && c.volume2.gameObject.restitution != null ? c.volume2.gameObject.restitution : 1
+                    );
+                    collisionSpeedMagnitude *= restitution;
     
-                    if (collisionSpeedMagnitude < 0) {
+                    if (collisionSpeedMagnitude <= 0) {
                         // collision impulse
                         mass01 = c.volume1.gameObject != null && c.volume1.gameObject.mass != null ? c.volume1.gameObject.mass : null;
                         mass02 = c.volume2.gameObject != null && c.volume2.gameObject.mass != null ? c.volume2.gameObject.mass : null;
@@ -153,6 +183,8 @@ GF.CollisionManager = class CollisionManager {
                         } else if (mass02 == null) {
                             mass02 = mass01 != null ? mass01 : 1;
                         }
+
+                        collisionSpeedMagnitude = Math.abs(collisionSpeedMagnitude) < MIN_COLLISION_FORCE_SPEED ? 0 : collisionSpeedMagnitude;
                         impulse = 2 * collisionSpeedMagnitude / (mass01 + mass02);
 
                         // volume 1 collision speed
@@ -169,40 +201,11 @@ GF.CollisionManager = class CollisionManager {
                             -(impulse * mass01 * c.normal02[2])
                         ]
 
-                        // truncate object position and apply collision speed
-                        if (c.volume1.gameObject != null && c.volume1.gameObject.speed != null && c.volume1.gameObject.dynamic === true) {
-                            // truncate object position
-                            if (c.normal01[0] != 0) {
-                                c.volume1.gameObject.speed.x = Math.abs(c.collisionSpeed01[0]) < MIN_COLLISION_FORCE_SPEED ? 0 : c.collisionSpeed01[0];
-                                c.volume1.gameObject.object3D.position.x = ((c.volume1.shape.sizeHalf[0] - c.volume1.shape.offset[0]) * c.normal01[0]) + c.point[0];
-                            }
-                            if (c.normal01[1] != 0) {
-                                c.volume1.gameObject.speed.y = Math.abs(c.collisionSpeed01[1]) < MIN_COLLISION_FORCE_SPEED ? 0 : c.collisionSpeed01[1];
-                                c.volume1.gameObject.object3D.position.y = ((c.volume1.shape.sizeHalf[1] - c.volume1.shape.offset[1]) * c.normal01[1]) + c.point[1];
-                            }
-                            if (c.normal01[2] != 0) {
-                                c.volume1.gameObject.speed.z = Math.abs(c.collisionSpeed01[2]) < MIN_COLLISION_FORCE_SPEED ? 0 : c.collisionSpeed01[2];
-                                c.volume1.gameObject.object3D.position.z = ((c.volume1.shape.sizeHalf[2] - c.volume1.shape.offset[2]) * c.normal01[2]) + c.point[2];
-                            }
-                            c.volume1.gameObject.isColliding = true;
-                        }
+                        // apply impulse on object 01
+                        this._applyImpulseOnObject(c.normal01, c.collisionSpeed01, c.collisionDistance, c.volume1.gameObject, c.volume2.position);
 
-                        // truncate object position and apply collision speed
-                        if (c.volume2.gameObject != null && c.volume2.gameObject.speed != null && c.volume2.gameObject.dynamic === true) {
-                            if (c.normal02[0] != 0) {
-                                c.volume2.gameObject.speed.x = Math.abs(c.collisionSpeed02[0]) < MIN_COLLISION_FORCE_SPEED ? 0 : c.collisionSpeed02[0];
-                                c.volume2.gameObject.object3D.position.x = ((c.volume2.shape.sizeHalf[0] - c.volume2.shape.offset[0]) * c.normal02[0]) + c.point[0];
-                            }
-                            if (c.normal02[1] != 0) {
-                                c.volume2.gameObject.speed.y = Math.abs(c.collisionSpeed02[1]) < MIN_COLLISION_FORCE_SPEED ? 0 : c.collisionSpeed02[1];
-                                c.volume2.gameObject.object3D.position.y = ((c.volume2.shape.sizeHalf[1] - c.volume2.shape.offset[1]) * c.normal02[1]) + c.point[1];
-                            }
-                            if (c.normal02[2] != 0) {
-                                c.volume2.gameObject.speed.z = Math.abs(c.collisionSpeed02[2]) < MIN_COLLISION_FORCE_SPEED ? 0 : c.collisionSpeed02[2];
-                                c.volume2.gameObject.object3D.position.z = ((c.volume2.shape.sizeHalf[2] - c.volume2.shape.offset[2]) * c.normal02[2]) + c.point[2];
-                            }
-                            c.volume2.gameObject.isColliding = true;
-                        }
+                        // apply impulse on object 02
+                        this._applyImpulseOnObject(c.normal02, c.collisionSpeed02, c.collisionDistance, c.volume2.gameObject, c.volume1.position);
 
                     } else {
                         c.collisionSpeed01 = null;
@@ -215,7 +218,6 @@ GF.CollisionManager = class CollisionManager {
                 c.normal02 = null;
                 c.collisionSpeed01 = null;
                 c.collisionSpeed02 = null;
-                c.point = null;
             }
 
             c = c.next;
@@ -252,7 +254,7 @@ GF.CollisionManager = class CollisionManager {
      * @param {string} id 
      */
     _updateVolumeDebugBoxPosition(id) {
-        if (this._debug && this._collisionVolumesDebugHelpers[id] != null) {
+        if (this._collisionVolumesDebugHelpers[id] != null) {
             this._collisionVolumesDebugHelpers[id].object.position.set(
                 this._collisionVolumes[id].position[0],
                 this._collisionVolumes[id].position[1],
@@ -405,10 +407,17 @@ GF.CollisionManager = class CollisionManager {
                     normal02: null,
                     collisionSpeed01: null,
                     collisionSpeed02: null,
-                    point: null,
+                    collisionDistance: null,
                     touching: false,
                     next: null
                 }
+
+                newContact.collisionDistance = [
+                    (newContact.volume1.shape.sizeHalf[0] - newContact.volume1.shape.offset[0]) + (newContact.volume2.shape.sizeHalf[0] - newContact.volume2.shape.offset[0]),
+                    (newContact.volume1.shape.sizeHalf[1] - newContact.volume1.shape.offset[1]) + (newContact.volume2.shape.sizeHalf[1] - newContact.volume2.shape.offset[1]),
+                    (newContact.volume1.shape.sizeHalf[2] - newContact.volume1.shape.offset[2]) + (newContact.volume2.shape.sizeHalf[2] - newContact.volume2.shape.offset[2])
+                ]
+
                 if (this._contacts.length > 0) {
                     this._contacts[this._contacts.length - 1].next = newContact;
                 }
@@ -449,7 +458,9 @@ GF.CollisionManager = class CollisionManager {
             position.z + this._collisionVolumes[id].shape.offset[2]
         ];
 
-        this._updateVolumeDebugBoxPosition(id)
+        if (this._debug) {
+            this._updateVolumeDebugBoxPosition(id)
+        }
     }
 
     /**
