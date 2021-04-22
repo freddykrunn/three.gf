@@ -26,7 +26,7 @@ Main Features:
 
 Currently there is no documentation available (future work). But here is a simple tutorial:
 
-1. You can use it in any javascript/HTML5 web app. You can, for example, assemble a simple http server in a folder and so the following:
+1. This can be used in any javascript/HTML5 web app (existant or from scratch). You can, for example, assemble a simple http server in a folder and do the following:
 2. In your `index.html` include the framework script
 ```html
     <script src="jgf.min.js" type="text/javascript"></script>
