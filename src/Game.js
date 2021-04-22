@@ -71,6 +71,8 @@ GF.Game = class Game extends GF.StateMachine {
         // private properties
         this._canvas = canvas;
         this._debugCanvas = debugCanvas;
+        this._mainContainer = null; // will be set by Controller
+
         var width = this._canvas.width * 0.5;
         var height = this._canvas.height * 0.5;
 
@@ -133,6 +135,10 @@ GF.Game = class Game extends GF.StateMachine {
 
         this._resolutionRatio = params != null && params.resolutionRatio != null ? params.resolutionRatio : 1;
         this._updateRenderSize(width, height);
+
+        // editor
+        this._editor = new GF.GameEditor(this);
+        this._editMode = false;
 
         // external access properties
         
@@ -746,6 +752,18 @@ GF.Game = class Game extends GF.StateMachine {
     }
 
     /**
+     * Start editor
+     * @param {any} params 
+     */
+    startEditor(editorPage, params) {
+        this._editor.setParams(params);
+        this._editMode = true;
+
+        this.start(editorPage);
+        this.activateDebugMode(true, {showLabels: true});
+    }
+
+    /**
      * Start the game engine
      */
     start(gamePage) {
@@ -763,11 +781,9 @@ GF.Game = class Game extends GF.StateMachine {
      */
     stop() {
         if (this.initialized) {
-        this.pause();
-        this._renderer.clear(true, true, true);
-        this._renderer.dispose();
-        this._destroy();
-        this.initialized = false;
+            this.pause();
+            this._destroy();
+            this.initialized = false;
         }
     }
 
@@ -895,33 +911,37 @@ GF.Game = class Game extends GF.StateMachine {
      * init
      */
     _init() {
-        this.eventManager._init();
-        this.inputManager._init();
+        if (this._editMode) {
+            this._editor.init();
+        } else {
+            this.eventManager._init();
+            this.inputManager._init();
 
-        this.onInit();
-        if (this._initCallback) {
-            this._initCallback();
-        }
+            this.onInit();
+            if (this._initCallback) {
+                this._initCallback();
+            }
 
-        for (var i = 0; i < this._objectsArray.length; i++) {
-            this._objectsArray[i]._init(this.scene, this.camera, this);
-        }
+            for (var i = 0; i < this._objectsArray.length; i++) {
+                this._objectsArray[i]._init(this.scene, this.camera, this);
+            }
 
-        if (this._usePointerLock) {
-            this.documentClickCallback = this.requestPointerLock.bind(this);
-            this._pointerLockChangeCallback = this._pointerlockChange.bind(this);
-            document.body.addEventListener("click", this.documentClickCallback);
-            document.addEventListener('pointerlockchange', this._pointerLockChangeCallback, false);
+            if (this._usePointerLock) {
+                this.documentClickCallback = this.requestPointerLock.bind(this);
+                this._pointerLockChangeCallback = this._pointerlockChange.bind(this);
+                document.body.addEventListener("click", this.documentClickCallback);
+                document.addEventListener('pointerlockchange', this._pointerLockChangeCallback, false);
 
-            setTimeout(() => {
-                this.requestPointerLock();
-            })
-        }
+                setTimeout(() => {
+                    this.requestPointerLock();
+                })
+            }
 
-        // raycaster
-        if (this._useMouseRaycasting) {
-            this.mouseMoveCallback = this._onMouseMove.bind(this);
-            document.addEventListener('mousemove', this.mouseMoveCallback, false);
+            // raycaster
+            if (this._useMouseRaycasting) {
+                this.mouseMoveCallback = this._onMouseMove.bind(this);
+                document.addEventListener('mousemove', this.mouseMoveCallback, false);
+            }
         }
     }
 
@@ -930,49 +950,55 @@ GF.Game = class Game extends GF.StateMachine {
      */
     _animate() {
         if (this.running === true) {
-            // update
-            this.newTime = new Date().valueOf();
-            this._update(Math.min(this.newTime - this.currentTime, MAX_MS_PER_UPDATE) * this._speed);
-            this.currentTime = this.newTime;
-
-            // update camera shaker
-            this._cameraShaker.update();
-
-            // raycasting
-            if (this._useMouseRaycasting) {
-                if (this.currentMouseIntersection != null && this.currentMouseIntersection.object != null) {
-                    this.currentMouseIntersection.object._mouseIntersect(false);
-                }
-
-                this.currentMouseIntersection = this.collisionManager.intersectObjects(this._mouseCoords, this.camera);
-
-                if (this.currentMouseIntersection != null && this.currentMouseIntersection.object != null) {
-                    this.currentMouseIntersection.object._mouseIntersect(true);
-                }
-            }
-
-            this._renderer.clear();
-
-            // render
-            if (this._useRenderLayers === true) {
-                this._renderer.autoClear = true;
-                this.camera.layers.set(0);
-                this._renderer.render(this.scene, this.camera);
-
-                this._renderer.autoClear = false;
-
-                this.camera.layers.set(1);
+            if (this._editMode) {
+                this._renderer.clear();
+                this._editor.update();
                 this._renderer.render(this.scene, this.camera);
             } else {
-                if (this._useOutlineEffect) {
-                    this._outlineEffect.render(this.scene, this.camera);
-                } else {
+                // update
+                this.newTime = new Date().valueOf();
+                this._update(Math.min(this.newTime - this.currentTime, MAX_MS_PER_UPDATE) * this._speed);
+                this.currentTime = this.newTime;
+
+                // update camera shaker
+                this._cameraShaker.update();
+
+                // raycasting
+                if (this._useMouseRaycasting) {
+                    if (this.currentMouseIntersection != null && this.currentMouseIntersection.object != null) {
+                        this.currentMouseIntersection.object._mouseIntersect(false);
+                    }
+
+                    this.currentMouseIntersection = this.collisionManager.intersectObjects(this._mouseCoords, this.camera);
+
+                    if (this.currentMouseIntersection != null && this.currentMouseIntersection.object != null) {
+                        this.currentMouseIntersection.object._mouseIntersect(true);
+                    }
+                }
+
+                this._renderer.clear();
+
+                // render
+                if (this._useRenderLayers === true) {
+                    this._renderer.autoClear = true;
+                    this.camera.layers.set(0);
                     this._renderer.render(this.scene, this.camera);
+
+                    this._renderer.autoClear = false;
+
+                    this.camera.layers.set(1);
+                    this._renderer.render(this.scene, this.camera);
+                } else {
+                    if (this._useOutlineEffect) {
+                        this._outlineEffect.render(this.scene, this.camera);
+                    } else {
+                        this._renderer.render(this.scene, this.camera);
+                    }
                 }
             }
 
             // animation frame
-            this.animationFrameRequest = requestAnimationFrame(this._animateFunction);
+            this.animationFrameRequest = requestAnimationFrame(this._animateFunction);   
         } else {
             if (this.animationFrameRequest) {
                 cancelAnimationFrame(this.animationFrameRequest);
@@ -1010,32 +1036,36 @@ GF.Game = class Game extends GF.StateMachine {
      * destroy
      */
     _destroy() {
+        this._renderer.clear(true, true, true);
         this._renderer.dispose();
 
-        this.setEnvironmentLight(null);
+        if (this._editMode) {
+            this._editor.destroy();
+        } else {
+            this.setEnvironmentLight(null);
 
-        for (var i = 0; i < this._objectsArray.length; i++) {
-            this._objectsArray[i]._destroy();
+            for (var i = 0; i < this._objectsArray.length; i++) {
+                this._objectsArray[i]._destroy();
+            }
+
+            this.eventManager._destroy();
+            this.inputManager._destroy();
+
+            this.onDestroy();
+            if (this._destroyCallback) {
+                this._destroyCallback();
+            }
+
+            if (this._usePointerLock) {
+                this.cancelPointerLock();
+                document.body.removeEventListener("click", this.documentClickCallback);
+                document.removeEventListener('pointerlockchange', this._pointerLockChangeCallback, false);
+            }
+
+            if (this._useMouseRaycasting) {
+                document.removeEventListener('mousemove', this.mouseMoveCallback, false);
+            }
         }
-
-        this.eventManager._destroy();
-        this.inputManager._destroy();
-
-        this.onDestroy();
-        if (this._destroyCallback) {
-            this._destroyCallback();
-        }
-
-        if (this._usePointerLock) {
-            this.cancelPointerLock();
-            document.body.removeEventListener("click", this.documentClickCallback);
-            document.removeEventListener('pointerlockchange', this._pointerLockChangeCallback, false);
-        }
-
-        if (this._useMouseRaycasting) {
-            document.removeEventListener('mousemove', this.mouseMoveCallback, false);
-        }
-
     }
 
     /**

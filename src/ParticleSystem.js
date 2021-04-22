@@ -68,23 +68,22 @@ GF.ParticleSystem = class ParticleSystem extends GF.GameObject {
     /**
      * Particle System
 	 * 
-	 * @param {object} params the params to build the particle system:
+	 * @param {Params} params the params to build the particle system:
 	 * 
-	 * {
-	 *   {number} color : the color of the particles
-	 *   {number} opacity : the color of the particles
-	 *   {number} texture : the texture of the particles
-	 *   {number} particleCount : the max number of particles at a time
-	 *   {number} size : the size of the particles
-	 *   {THREE.Vector3} velocity : the velocity applied to each particle
-	 *   {number} lifetime : the lifetime of each particle
-	 *   {number} spawnDelay : the delay between each particle spawn 'tick'
-	 *   {number} spawnCount : the count of particles spawn at each spawn 'tick'
-	 *   {THREE.Vector3} spawnBox : spawn box (sizeX, sizeY, sizeZ)
-	 *   {boolean} isParticlePositionLocal : if particles are positioned relative to the world or to the local particle system origin
-	 *   {boolean} hasSizeAttenuation : if particles size will be reduced along with the life time
-	 *   {THREE.Vector3} offset : particles position offset
-	 * }
+	 * ### Params ###
+	 * * `color: number` - the color of the particles
+	 * * `opacity: number` - the opacity of the particles
+	 * * `texture: string` - the texture asset for the particles
+	 * * `particleCount: number` - the max number of particles at a time
+	 * * `size: number` - the size of the particles
+	 * * `velocity: THREE.Vector3` - the velocity applied to each particle
+	 * * `lifetime: number` - the lifetime of each particle
+	 * * `spawnDelay: number` - the delay between each particle spawn 'tick'
+	 * * `spawnCount: number` - the count of particles spawn at each spawn 'tick'
+	 * * `spawnBox: THREE.Vector3` - spawn box (sizeX, sizeY, sizeZ)
+	 * * `isParticlePositionLocal: boolean` - if particles are positioned relative to the world or to the local particle system origin
+	 * * `hasSizeAttenuation: boolean` - if particles size will be reduced along with the life time
+	 * * `offset: THREE.Vector3` - particles position offset
      */
 	constructor(params) {
 		super(new THREE.Object3D(), null, false);
@@ -280,32 +279,31 @@ GF.ParticleSystem = class ParticleSystem extends GF.GameObject {
 
 /**
  * Explosion particles effect
- * @param {Game} game game pointer
- * @param {any} haloParticles
- * {
-		* texture: string,
-		* color: number,
-		* opacity: number,
-		* minSpeed: number,
-		* maxSpeed: number,
-		* life: number,
-		* size: number,
-		* particleCount: number
-		* maxSpeedAngle: number
- * }
- * @param {any} fireParticles 
- * {
-		* texture: string,
-		* color: number,
-		* opacity: number,
-		* minSpeed: number,
-		* maxSpeed: number,
-		* life: number,
-		* size: number,
-		* particleCount: number
-		* spawnBoxSize: number
- * }
- */
+ * @param {GF.Game} game a pointer to the game instance
+ * @param {Vector3} position the position
+ * @param {HaloParticles} haloParticles
+ * #### HaloParticles ####
+* * `texture: string` - the texture asset for the particles
+* * `color: number` - the color of the particles
+* * `opacity: number` - the opacity of the particles
+* * `minSpeed: number` - the min applied to each particle
+* * `maxSpeed: number` - the max applied to each particle
+* * `life: number` - the lifetime of each particle
+* * `size: number` - the size of each particle
+* * `particleCount: number` - the particle count
+* * `maxSpeedAngle: number` - the max vertical angle to throw a particle
+* @param {FireParticles} fireParticles
+* #### FireParticles ####
+* * `texture: string` - the texture asset for the particles
+* * `color: number` - the color of the particles
+* * `opacity: number` - the opacity of the particles
+* * `minSpeed: number` - the min applied to each particle
+* * `maxSpeed: number` - the max applied to each particle
+* * `life: number` - the lifetime of each particle
+* * `size: number` - the size of each particle
+* * `particleCount: number` - the particle count
+* * `spawnBoxSize: number` - the size of the area where fire particles will be spawn
+*/
 GF.ExplosionEffect = function(game, position, haloParticles, fireParticles) {
 	var canvasDimensions, sizeAttenuator, positionIndex;
 
@@ -533,4 +531,4 @@ GF.ExplosionEffect = function(game, position, haloParticles, fireParticles) {
 			this.game.scene.remove(this.fire);
 		}
 	}
-  }
+}

@@ -4,14 +4,16 @@
  */
 GF.Scene = class Scene {
     /**
-     * Create a template scene from an asset
-     * @param {GF.Game} game the game
-     * @param {any} sceneAsset the asset
+     * Create a template scene from an asset JSON file
+     * @param {GF.Game} game the game instance pointer
+     * @param {string} sceneAsset the asset of the scene file
+     * @param {'three' | 'jgf'} sceneType the scene type (if is a file procuded in JGF editor it should be 'jgf' instead if
+     * it is produced by THREEjs json file it should be 'three')
      */
-    constructor(game, sceneAsset) {	     
+    constructor(game, sceneAsset, sceneType) {	     
         this._game = game;      
-        this.sceneAsset = sceneAsset;
-        this.lights = [];
+        this._sceneAsset = sceneAsset;
+        this._sceneType = sceneType != null ? sceneType : "jgf";
     }
 
     /**
@@ -21,12 +23,15 @@ GF.Scene = class Scene {
         var newObject, constructorString, argumentNames;
         // arguments
         constructorString = `new ${type}(`;
-        argumentNames = Object.keys(args);
-        for (var i = 0; i<args.length; i++) {
-            constructorString += JSON.stringify(args[argumentNames[i]]);
-            if (i < args.length-1) {
-                constructorString += ",";
+        if (args instanceof Array) {
+            for (var i = 0; i<args.length; i++) {
+                constructorString += JSON.stringify(args[i]);
+                if (i < args.length-1) {
+                    constructorString += ",";
+                }
             }
+        } else {
+            constructorString += JSON.stringify(args);
         }
         constructorString += `)`;
 
@@ -45,14 +50,9 @@ GF.Scene = class Scene {
     }
 
     /**
-     * Init
+     * Init scene for a ThreeJs JSON file
      */
-    init() {
-        this.sceneObjects = [];
-        this.objects = [];
-        this.collisionVolumes = [];
-        this.sceneAssetData = this._game.loader.get(this.sceneAsset);
-
+    _initForThreeJsScene() {
         if (this.sceneAssetData != null && this.sceneAssetData.object != null && this.sceneAssetData.object.children != null && this.sceneAssetData.object.type === "Scene") {
             var children = this.sceneAssetData.object.children;
             var newObject, light, matrix, newMesh, geometry, material, mat, cv, position, quaternion, scale;
@@ -67,7 +67,7 @@ GF.Scene = class Scene {
 
                 // Collision volume
                 if (children[i].name === "CollisionBox") {
-                    cv = this._game.addStaticCollisionVolume(
+                    cv = this._game.collisionManager.addVolume(null,
                         new GF.CollisionVolumeBox(scale.x, scale.y, scale.z, new THREE.Vector3(0,0,0)),
                         position
                     );
@@ -85,23 +85,21 @@ GF.Scene = class Scene {
                             // create material
                             mat = this.sceneAssetData.materials != null ? this.sceneAssetData.materials.find(m => m.uuid === children[i].material) : null;
                             if (mat != null) {
-                                material = GF.Utils.getDefaultMaterial(
+                                material = GF.Utils.buildMaterial(
                                     this._game.loader,
-                                    children[i].userData.map,
-                                    children[i].userData.bumpMap,
-                                    children[i].userData.specularMap,
-                                    children[i].userData.alphaMap,
-                                    children[i].userData.emissiveMap,
-                                    mat.color,
-                                    mat.shininess,
-                                    mat.emissive,
-                                    mat.specular,
-                                    mat.bumpScale,
-                                    mat.flatShading,
-                                    mat.depthFunc,
-                                    mat.depthTest,
-                                    mat.depthWrite,
-                                    mat.transparent
+                                    {
+                                        texture: children[i].userData.map,
+                                        bumpTexture: children[i].userData.bumpMap,
+                                        specularTexture: children[i].userData.specularMap,
+                                        alphaTexture: children[i].userData.alphaMap,
+                                        emissiveTexture: children[i].userData.emissiveMap,
+                                        color: mat.color,
+                                        shininess: mat.shininess,
+                                        emissiveColor: mat.emissive,
+                                        specular: mat.specular,
+                                        bumpScale: mat.bumpScale,
+                                        opacity: mat.opacity
+                                    }
                                 );
                             }
 
@@ -161,6 +159,76 @@ GF.Scene = class Scene {
     }
 
     /**
+     * Init scene for a file of JGF editor
+     */
+    _initForJGFScene() {
+        var newObject;
+        if (this.sceneAssetData.objects instanceof Array) {
+            for (const object of this.sceneAssetData.objects) {
+                // game object
+                if (object.gameObject) {
+
+                    for (const index in object.params) {
+                        if (object.params[index] === "{{position}}") {
+                            object.params[index] = object.position;
+                        } else if (object.params[index] === "{{rotation}}") {
+                            object.params[index] = object.rotation;
+                        } else if (object.params[index] === "{{scale}}") {
+                            object.params[index] = object.scale;
+                        }
+                    }
+
+                    newObject = this._instantiateObject(object.id, object.gameObject, object.params);
+                    this.objects.push(newObject);
+                // decoration mesh
+                } else {
+                    object.params = object.params == null ? {} : object.params;
+
+                    newObject = GF.Utils.build3DObject(this._game.loader, {
+                        model: object.model,
+                        material: object.material ? object.material : Object.assign({
+                            texture: object.texture
+                        }, object.params.material != null ? object.params.material : {})
+                    })
+                    newObject.castShadow = object.params.castShadow != null ? object.params.castShadow : true;
+                    newObject.receiveShadow = object.params.receiveShadow != null ? object.params.receiveShadow : true;
+
+                    newObject.position.set(object.position.x, object.position.y, object.position.z);
+                    newObject.rotation.set(object.rotation.x, object.rotation.y, object.rotation.z);
+                    newObject.scale.set(object.scale.x, object.scale.y, object.scale.z);
+
+                    // add collision volume
+                    if (object.collision) {
+                        const cv = this._game.collisionManager.addVolume(null, GF.Utils.buildCollisionVolumeFrom3DObject(newObject), newObject.position);
+                        this.collisionVolumes.push(cv);
+                    }
+
+                    this.sceneObjects.push(newObject);
+                    this._game.addToScene(newObject, object.rayCollision);
+                }
+            }
+        }
+    }
+
+    /**
+     * Init
+     */
+    init() {
+        this.sceneObjects = [];
+        this.objects = [];
+        this.collisionVolumes = [];
+        this.sceneAssetData = this._game.loader.get(this._sceneAsset);
+
+        if (this.sceneAssetData) {
+            if (this._sceneType === "jgf") {
+                this._initForJGFScene();
+            } else {
+                this._initForThreeJsScene();
+            }
+        }
+    }
+
+    /**
      * Destroy
      */
     destroy() {
@@ -173,7 +241,7 @@ GF.Scene = class Scene {
         }
 
         for (var i = 0; i < this.collisionVolumes.length; i++) {
-            this._game.removeStaticCollisionVolume(this.collisionVolumes[i])
+            this._game.collisionManager.removeVolume(this.collisionVolumes[i].id)
         }
     }
 }

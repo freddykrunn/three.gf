@@ -4,7 +4,7 @@
  GF.StaticObject = class StaticObject extends GF.GameObject {
     /**
      * Constructor
-     * @param {any} params params to build this object
+     * @param {BuildObjectParams} params params to build this object (@see GF.Utils.build3DObject)
      */
     constructor(params) {
         super({

@@ -4,17 +4,18 @@
 GF.Page = class Page {
     /**
      * Constructor
-     * @param {{background: string, style: string, html: string}} properties 
+     * @param {{useCanvas: boolean, background: string, style: string, html: string}} properties 
      * @param {GF.GameController} controller
      */
     constructor(properties, controller) {
-        this.content = document.createElement("div");
-        this.content.style.position = "relative";
-        this.content.style.width = "100%";
-        this.content.style.height = "100%";
-        this.content.style.overflow = "hidden";
-        this._decorateElement(this.content);
+        this.contentDiv = document.createElement("div");
+        this.contentDiv.style.position = "relative";
+        this.contentDiv.style.width = "100%";
+        this.contentDiv.style.height = "100%";
+        this.contentDiv.style.overflow = "hidden";
         this.controller = controller;
+
+        this.content = $(this.contentDiv);
 
         this._PAGE_CANVAS_SHAPE_TYPE = {
             Image: 1,
@@ -29,7 +30,7 @@ GF.Page = class Page {
         if (properties) {
             this._useCanvas = properties.useCanvas;
 
-            this.content.style.background = properties.background;
+            this.contentDiv.style.background = properties.background;
 
             var name = properties.name != null ? properties.name : "test";
 
@@ -41,10 +42,10 @@ GF.Page = class Page {
                 this._canvasHTMLElement = document.createElement("canvas");
                 this._canvasHTMLElement.style.position = "absolute";
                 this._canvasHTMLElement.style.zIndex = "100";
-                this._canvasHTMLElement.width = this.content.offsetWidth;
-                this._canvasHTMLElement.height = this.content.offsetHeight;
+                this._canvasHTMLElement.width = this.contentDiv.offsetWidth;
+                this._canvasHTMLElement.height = this.contentDiv.offsetHeight;
                 this.context2D = this._canvasHTMLElement.getContext("2d");
-                this.content.appendChild(this._canvasHTMLElement);
+                this.contentDiv.appendChild(this._canvasHTMLElement);
 
                 this.canvas = {
                     "createShapeImage": this._addImageShape.bind(this),
@@ -53,13 +54,11 @@ GF.Page = class Page {
                     "createShapeLine": this._addLineShape.bind(this)
                 }
             } else if (properties.html) {
-                this.content.innerHTML = properties.html;
+                this.contentDiv.innerHTML = properties.html;
 
-                var children = this.content.querySelectorAll("[id]");
+                var children = this.contentDiv.querySelectorAll("[id]");
                 for (var child of children) {
-                    this[child.id] = child;
-
-                    this._decorateElement(this[child.id]);
+                    this[child.id] = this.content.find(child);
                 }
             }
         }
@@ -68,35 +67,12 @@ GF.Page = class Page {
     //#region internal
 
     /**
-     * Decorate element
-     * @param {HTMLElement} element 
-     */
-    _decorateElement(element) {
-        var self = this;
-        element.setStyle = function(prop, val) {
-            w3.styleElement(element, prop, val);
-        }
-        element.addClass = function(className) {
-            w3.addClass(element, className);
-        }
-        element.removeClass = function(className) {
-            w3.removeClass(element, className);
-        }
-        element.setText = function(text) {
-            element.innerHTML = text;
-        }
-        element.addUIElement = function(id, t, cn, is) {
-            return self.addUIElement(id, t, cn, is, element);
-        }
-    }
-
-    /**
      * Open page
      */
     _open(container, args) {
         this.container = container;
         this.container.innerHTML = "";
-        this.container.appendChild(this.content);
+        this.container.appendChild(this.contentDiv);
         if (this._useCanvas) {
             this.redrawCanvas();
         }
@@ -425,60 +401,14 @@ GF.Page = class Page {
     }
 
     /**
-     * Get UI element
-     * @param {string} id 
-     */
-    getUIElement(id) {
-        return this.content.querySelector("#" + id)
-    }
-
-    /**
-     * Add ui element to page content
-     * @param {string} type 
-     * @param {object} initialStyle 
-     */
-    addUIElement(id, type, className, initialStyle, parent) {
-        const element = document.createElement(type);
-        if (parent != null) {
-            parent.appendChild(element);
-        } else {
-            this.content.appendChild(element);
-        }
-
-        this._decorateElement(element);
-
-        if (className) {
-            element.className = className;
-        }
-
-        if (initialStyle) {
-            element.setStyle(initialStyle);
-        }
-
-        if (id != null) {
-            element.id = id;
-        }
-        
-        return element;
-    }
-
-    /**
-     * Remove ui element from page content
-     * @param {Element} element 
-     */
-    removeUIElement(element) {
-        this.content.removeChild(element);
-    }
-
-    /**
      * Function to redraw canvas
      * (automatically called on resize)
      */
     redrawCanvas() {
-        this._canvasHTMLElement.width = this.content.offsetWidth;
-        this._canvasHTMLElement.height = this.content.offsetHeight;
-        this._canvasWidth = this.content.offsetWidth;
-        this._canvasHeight = this.content.offsetHeight;
+        this._canvasHTMLElement.width = this.contentDiv.offsetWidth;
+        this._canvasHTMLElement.height = this.contentDiv.offsetHeight;
+        this._canvasWidth = this.contentDiv.offsetWidth;
+        this._canvasHeight = this.contentDiv.offsetHeight;
         
         this.context2D.clearRect(0, 0, this._canvasWidth, this._canvasHeight);
 

@@ -39,6 +39,7 @@ GF.GRAPHICS_PRESET_PARAMS = {
 
 // default pages ids
 GF.GAME_PAGE = "game";
+GF.EDITOR_PAGE = "editor";
 GF.LOADING_MODAL = "loading";
 
 /**
@@ -166,6 +167,7 @@ GF.GameController = class GameController {
         } else {
             this.game = new GF.Game(this._gameCanvas, this._gameDebugCanvas, this.assets, gameParams.params, gameParams.onStart, gameParams.onUpdate, gameParams.onStop, gameParams.onTickUpdate, gameParams.onPointerLockChange);
         }
+        this.game._mainContainer = this._container;
         this.input = this.game.inputManager;
         this.animation = this.game.animationManager;
 
@@ -197,6 +199,7 @@ GF.GameController = class GameController {
         if (this.pages.getPage(GF.LOADING_MODAL) == null) {
             this.pages.addPage(GF.LOADING_MODAL, new DefaultLoadingPage(this));
         }
+        this.pages.addPage(GF.EDITOR_PAGE, new EditorPage(this));
 
         // bind to window resize
         this.onWindowResizeCallback = this.onWindowResize.bind(this);
@@ -268,12 +271,13 @@ GF.GameController = class GameController {
      * Boot Game
      * 
      * @param type the boot type
+     * @param params the boot params
      * 
      * type = 'default':
      *   1 - load currently added assets
      *   2 - Go to game page
      */
-    boot(type, afterBoot) {
+    boot(type, params, afterBoot) {
         if (type === "default") {
             this.loadAllAssets(() => {
                 if (afterBoot) {
@@ -286,6 +290,10 @@ GF.GameController = class GameController {
                 afterBoot();
             }
             this.pages.goTo(GF.GAME_PAGE);
+        } else if (type === "editor") {
+            this.loadAllAssets(() => {
+                this.pages.goTo(GF.EDITOR_PAGE, params);
+            });
         }
     }
 

@@ -112,23 +112,23 @@ GF.CollisionManager = class CollisionManager {
     /**
      * Apply collision impulse on object
      */
-    _applyImpulseOnObject(normal, collisionSpeed, collisionDistance, gameObject, otherVolumePosition) {
+    _applyImpulseOnObject(normal, collisionSpeed, collisionDistance, volumeOffset, gameObject, otherVolumePosition) {
         // truncate object position and apply collision speed
         if (gameObject != null && gameObject.dynamic === true && gameObject.speed != null) {
             // truncate object position
             if (normal[0] != 0) {
                 gameObject.speed.x = collisionSpeed[0];
-                gameObject.object3D.position.x = (normal[0] * collisionDistance[0]) + otherVolumePosition[0];
+                gameObject.object3D.position.x = (normal[0] * collisionDistance[0]) + otherVolumePosition[0] - volumeOffset[0];
                 gameObject._collisionNormal.x += normal[0];
             }
             if (normal[1] != 0) {
                 gameObject.speed.y = collisionSpeed[1];
-                gameObject.object3D.position.y = (normal[1] * collisionDistance[1]) + otherVolumePosition[1];
+                gameObject.object3D.position.y = (normal[1] * collisionDistance[1]) + otherVolumePosition[1] - volumeOffset[1];
                 gameObject._collisionNormal.y += normal[1];
             }
             if (normal[2] != 0) {
                 gameObject.speed.z = collisionSpeed[2];
-                gameObject.object3D.position.z = (normal[2] * collisionDistance[2]) + otherVolumePosition[2];
+                gameObject.object3D.position.z = (normal[2] * collisionDistance[2]) + otherVolumePosition[2] - volumeOffset[2];
                 gameObject._collisionNormal.z += normal[2];
             }
             gameObject._isColliding = true;
@@ -170,7 +170,7 @@ GF.CollisionManager = class CollisionManager {
                     // restitution
                     restitution = Math.min(
                         c.volume1.gameObject != null && c.volume1.gameObject.restitution != null ? c.volume1.gameObject.restitution : 1,
-                        c.volume2.gameObject != null && c.volume2.gameObject.restitution != null ? c.volume2.gameObject.restitution : 1
+                        c.volume2.gameObject != null && c.volume2.gameObject.restitution != null ? c.volume2.gameObject.restitution : 0
                     );
                     collisionSpeedMagnitude *= restitution;
     
@@ -202,10 +202,10 @@ GF.CollisionManager = class CollisionManager {
                         ]
 
                         // apply impulse on object 01
-                        this._applyImpulseOnObject(c.normal01, c.collisionSpeed01, c.collisionDistance, c.volume1.gameObject, c.volume2.position);
+                        this._applyImpulseOnObject(c.normal01, c.collisionSpeed01, c.collisionDistance, c.volume1.shape.offset, c.volume1.gameObject, c.volume2.position);
 
                         // apply impulse on object 02
-                        this._applyImpulseOnObject(c.normal02, c.collisionSpeed02, c.collisionDistance, c.volume2.gameObject, c.volume1.position);
+                        this._applyImpulseOnObject(c.normal02, c.collisionSpeed02, c.collisionDistance, c.volume2.shape.offset, c.volume2.gameObject, c.volume1.position);
 
                     } else {
                         c.collisionSpeed01 = null;
@@ -413,9 +413,9 @@ GF.CollisionManager = class CollisionManager {
                 }
 
                 newContact.collisionDistance = [
-                    (newContact.volume1.shape.sizeHalf[0] - newContact.volume1.shape.offset[0]) + (newContact.volume2.shape.sizeHalf[0] - newContact.volume2.shape.offset[0]),
-                    (newContact.volume1.shape.sizeHalf[1] - newContact.volume1.shape.offset[1]) + (newContact.volume2.shape.sizeHalf[1] - newContact.volume2.shape.offset[1]),
-                    (newContact.volume1.shape.sizeHalf[2] - newContact.volume1.shape.offset[2]) + (newContact.volume2.shape.sizeHalf[2] - newContact.volume2.shape.offset[2])
+                    newContact.volume1.shape.sizeHalf[0] + newContact.volume2.shape.sizeHalf[0],
+                    newContact.volume1.shape.sizeHalf[1] + newContact.volume2.shape.sizeHalf[1],
+                    newContact.volume1.shape.sizeHalf[2] + newContact.volume2.shape.sizeHalf[2]
                 ]
 
                 if (this._contacts.length > 0) {

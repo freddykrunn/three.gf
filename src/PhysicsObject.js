@@ -9,12 +9,25 @@ const MAX_SPEED_HISTORY = 3;
 GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
     /**
      * PhysicsObject
-     * @param {any} object3D object 3D pre-build params
+     * @param {THREE.Object3D | BuildObjectParams} object3DParams the actual THREE.Object3D or the params to build one (@see GF.Utils.build3DObject)
      * @param {GF.CollisionVolume} collisionVolume collision volume
-     * @param {any} params physics params
+     * @param {PhysicsParams} params physics params
+     * #### PhysicsParams ####
+     * * `dynamic: boolean` - If object is dynamic (if it will move and react to forces or be stationary)
+     * * `gravity: boolean` - If object is affected by gravity (dynamic=true only)
+     * * `solid: boolean` - If object will collide with solid objects
+     * * `mass: number` - The object mass
+     * * `restitution: number` - The object collision restitution coefficient (0 - 1)
+     * * `collisionFriction: number` - The object collision friction coefficient
+     * * `maxSpeed: {horizontal: number, vertical: number}` - Max speed horizontal (x & z) or vertical (y)
+     * * `useRayCollision: boolean` - If object will use ray collision to collide with terrain objects (y ray collision only)
+     * * `rayCollisionHeight: number` - Ray collision height
+     * * `rayCollisionMinStepHeight: number` - Ray collision min step for the object to be able to climb
+     * * `collisionGroups: string[]` - The collision groups
+     * * `rotationMatchesDirection: boolean` - If the Object3D rotation will match the direction of movement
      */
-    constructor(object3D, collisionVolume, params) {
-        super(object3D);
+    constructor(object3DParams, collisionVolume, params) {
+        super(object3DParams);
 
         if (params == null) {
             params = {};
@@ -24,17 +37,17 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
         this.speed = new THREE.Vector3(0,0,0);
         this.movementDirection = new THREE.Vector3(0,0,0);
 
-        this.useRayCollision = params.useRayCollision;
-        this.rayCollisionHeight = params.rayCollisionHeight != null ? params.rayCollisionHeight : 1;
-        this.rayCollisionMinStepHeight = params.rayCollisionMinStepHeight != null ? params.rayCollisionMinStepHeight : 0.1;
         this.dynamic = params.dynamic;
+        this.affectedByGravity = params.gravity != null ? params.gravity : true;
         this.mass = params.mass != null ? params.mass : 1;
-        this.restitution = params.restitution != null ? params.restitution : 0.01;
+        this.restitution = params.restitution != null ? params.restitution : 0;
         this.kineticCollisionFriction = params.collisionFriction;
         this.maxHorizontalSpeed = params.maxSpeed != null ? params.maxSpeed.horizontal : null;
         this.maxVerticalSpeed = params.maxSpeed != null ? params.maxSpeed.vertical : null;
-        this.affectedByGravity = params.gravity != null ? params.gravity : true;
         this.rotationMatchesDirection = params.rotationMatchesDirection != null ? params.rotationMatchesDirection : false;
+        this.useRayCollision = params.useRayCollision;
+        this.rayCollisionHeight = params.rayCollisionHeight != null ? params.rayCollisionHeight : 1;
+        this.rayCollisionMinStepHeight = params.rayCollisionMinStepHeight != null ? params.rayCollisionMinStepHeight : 0.1;
 
         // internal properties
         this._collisionVolume = collisionVolume;

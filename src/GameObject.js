@@ -6,7 +6,7 @@ GF.GameObject = class GameObject extends GF.StateMachine {
 
     /**
      * Constructor
-     * @param {any} object3DParams params for pre-build the 3D representation of this object
+     * @param {THREE.Object3D | BuildObjectParams} object3DParams the actual THREE.Object3D or the params to build one (@see GF.Utils.build3DObject)
      * @param {boolean} affectsRayCollision if this objects affects ray collision
      * @param {boolean} affectsRayCollision if this object will not be updated every frame (static objects)
      */

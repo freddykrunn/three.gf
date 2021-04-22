@@ -54,7 +54,7 @@ GF.PageManager = class PageManager {
      * @param {any} args arguments (optional)
      */
     goTo(id, args) {
-        if (!this._navigating) {
+        if (!this._navigating && this._currentPage !== this._pages[id]) {
             let closePromise = Promise.resolve();
             if (this._currentPage != null) {
                 closePromise = this._currentPage._close();
@@ -82,17 +82,19 @@ GF.PageManager = class PageManager {
      * @param {string} id page id 
      */
     openModal(id) {
-        let closePromise = Promise.resolve();
-        if (this._currentModal != null) {
-            closePromise = this._currentModal._close();
-        }
-        closePromise.then(() => {
-            this._currentModal = this._pages[id];
+        if (this._currentModal !== this._pages[id]) {
+            let closePromise = Promise.resolve();
             if (this._currentModal != null) {
-                this._modalContainer.style.display = "initial";
-                this._currentModal._open(this._modalContainer);
+                closePromise = this._currentModal._close();
             }
-        });
+            closePromise.then(() => {
+                this._currentModal = this._pages[id];
+                if (this._currentModal != null) {
+                    this._modalContainer.style.display = "initial";
+                    this._currentModal._open(this._modalContainer);
+                }
+            });
+        }
     }
 
     /**

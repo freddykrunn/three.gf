@@ -78,20 +78,27 @@ GF.AssetsLoader = class AssetsLoader {
                 // choose loader
                 const loader = this._loaders[asset.type];
                 if (loader != null) {
-                    // load and store asset content
-                    loader.load(asset.params, 
-                    (content) => {
-                        asset.content = content;
-                        asset.loaded = true;
+                    if (!asset.loaded) {
+                        // load and store asset content
+                        loader.load(asset.params, 
+                            (content) => {
+                                if (!asset.loaded) {
+                                    asset.content = content;
+                                    asset.loaded = true;
+                                    this._updateProgress(index+1, assetNames.length, onUpdate, onFinish);
+                                    this._loadAsset(index+1, assets, assetNames, onUpdate, onFinish, onError);
+                                }
+                            }, (error) => {
+                                if (error && onError) {
+                                    onError("ERROR :: Loading asset '"+assetPath+"' of type '"+GF.AssetType[asset.type]+"' :: " + error);
+                                }
+                                this._updateProgress(index+1, assetNames.length, onUpdate, onFinish);
+                                this._loadAsset(index+1, assets, assetNames, onUpdate, onFinish, onError);
+                            });
+                    } else {
                         this._updateProgress(index+1, assetNames.length, onUpdate, onFinish);
                         this._loadAsset(index+1, assets, assetNames, onUpdate, onFinish, onError);
-                    }, (error) => {
-                        if (error && onError) {
-                            onError("ERROR :: Loading asset '"+assetPath+"' of type '"+GF.AssetType[asset.type]+"' :: " + error);
-                        }
-                        this._updateProgress(index+1, assetNames.length, onUpdate, onFinish);
-                        this._loadAsset(index+1, assets, assetNames, onUpdate, onFinish, onError);
-                    });
+                    }
                 } else {
                     // file not supported
                     if (onError != null) {
@@ -432,8 +439,6 @@ GF.CubeTextureFileLoader = class CubeTextureFileLoader extends GF.FileLoader {
             } else {
                 onError("No paths provided!");
             }
-
-            onFinish(textureCube)
         } catch(err) {
             onError(err);
         }

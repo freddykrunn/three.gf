@@ -37,7 +37,8 @@ gulp.task('build-dist', function() {
         "./src/ParticleSystem.js",
         "./src/PhysicsObject.js",
         "./src/StaticObject.js",
-        "./src/CameraShaker.js"
+        "./src/CameraShaker.js",
+        "./src/Editor.js"
     ]);
 
 
@@ -57,17 +58,19 @@ gulp.task('build-dist', function() {
       )
       .pipe(uglify())
       .pipe(header(`
-        /**
-         * Copyright notice
-         * 
-         * Some third party libraries are bundled with this framework.
-         * The credits and copyright notice are listed below:
-         * 
-         * @credits for three.js - Copyright © 2010-2021 Three.js authors (MIT License)
-         * @credits for THREEx.KeyboardState.js - Copyright (c) 2013 Jerome Etienne (MIT License)
-         * @credits for w3.js - W3.JS 1.01 Jan 2017 by w3schools.com (No License)
-         */
-        var GF={};var THREEx={};
+      /**
+       * Copyright notice
+       * 
+       * @credits JGF framework - Copyright (c) 2021 Frederico Gonçalves (MIT License) github.com/freddykrunn
+       * 
+       * Some third party libraries are bundled with the framework.
+       * The credits and copyright notice are listed below:
+       * 
+       * @credits for three.js - Copyright (c) 2010-2021 Three.js authors (MIT License)
+       * @credits for THREEx.KeyboardState.js - Copyright (c) 2013 Jerome Etienne (MIT License)
+       * @credits for jQuery v3.6.0 - Copyright (c) OpenJS Foundation and other contributors (MIT License) (jquery.org/license)
+       */
+      var GF={};var THREEx={};
        `))
       .pipe(gulp.dest("./dist"))
 });

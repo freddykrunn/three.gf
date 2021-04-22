@@ -26,11 +26,52 @@ GF.Utils = {
         return deg * (Math.PI / 180);
     },
 
+    /**
+     * Converts radians to degrees
+     * @param {number} rad radians
+     * @returns degrees
+     */
+    radToDeg: function(rad) {
+        return rad / (Math.PI / 180);
+    },
+
+    /**
+     * Download a file
+     * @param {any} data 
+     * @param {string} filename 
+     * @param {string} type 
+     */
+    download(data, filename, type) {
+        var file = new Blob([data], {type: type});
+        if (window.navigator.msSaveOrOpenBlob) // IE10+
+            window.navigator.msSaveOrOpenBlob(file, filename);
+        else { // Others
+            var a = document.createElement("a"),
+                    url = URL.createObjectURL(file);
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(function() {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);  
+            }, 0); 
+        }
+    },
+
     //#region objects
 
     /**
      * Build 3D object
-     * @param {any} params 
+     * @param loader the assets loader instance
+     * @param {THREE.Object3D | BuildObjectParams} params the actual Object3D or the params to build one
+     * #### BuildObjectParams ####
+     * * `model: THREE.Geometry | BuildGeometryParams` - The params to build the geometry of the object
+     * * `material: THREE.Material | BuildMaterialParams` - The params to build the material of the object
+     * * `shadows: {cast: boolean, receive: boolean}` - If the object will cast/receive shadows
+     * * `position: Vector3` - Position for the object
+     * * `rotation: Vector3` - Rotation for the object
+     * * `scale: Vector3` - Scale for the object
      * @returns a new THREE.Mesh
      */
     build3DObject(loader, params) {
@@ -80,7 +121,15 @@ GF.Utils = {
 
     /**
      * Build Geometry
-     * @param {any} params 
+     * @param loader the assets loader instance
+     * @param {string | BuildGeometryParams} params the asset name to load the geometry or the params to build a new geometry
+     * #### BuildGeometryParams ####
+     * * `type: 'box' | 'sphere' | 'cylinder'` - The type of geometry to build
+     * * `size: number` - The size of the geometry (applies only to 'box')
+     * * `radius: number` - The radius of the geometry (applies only to 'sphere' or 'cylinder')
+     * * `segments: number` - The segments of the geometry (applies only to 'sphere' or 'cylinder')
+     * * `height: number` - The height of the geometry (applies only to 'cylinder')
+     * @returns a new THREE.Geometry
      */
     buildGeometry(loader, params) {
         // process model
@@ -106,7 +155,25 @@ GF.Utils = {
 
     /**
      * Build Material
-     * @param {any} params 
+     * @param loader the assets loader instance
+     * @param {string | BuildMaterialParams} params the asset name to load the material or the params to build a new material
+     * #### BuildMaterialParams ####
+     * * `type: 'phong' | 'lambert' | 'toon' | 'basic'` - The type of material to build
+     * * `color: number` - The color
+     * * `texture: string` - The texture
+     * * `specular: number` - The specular color (applicable to 'phong' or 'lambert' only)
+     * * `shininess: number` - The specular shininess (applicable to 'phong' or 'lambert' only)
+     * * `specularTexture: string` - The specular texture (applicable to 'phong' or 'lambert' only)
+     * * `emissiveColor: number` - The emissive color
+     * * `emissiveTexture: string` - The emissive texture
+     * * `emissiveIntensity: number` - The emissive intensity
+     * * `opacity: number` - The opacity (0 - 1)
+     * * `reflectionTexture: string` - The reflection texture
+     * * `reflectivity: number` - The reflectivity
+     * * `reflectivityOperation: number` - The reflectivity operation
+     * * `bumpTexture: string` - The bump map texture (applicable to 'phong' only)
+     * * `bumpScale: number` - The bump map scale (applicable to 'phong'  only)
+     * @returns a new THREE.Material
      */
     buildMaterial(loader, params) {
         var material = null;
@@ -115,7 +182,7 @@ GF.Utils = {
             material = loader.get(params);
         } else {
             // use required material if a preset is defined
-            var matType = params.type;
+            var matType = params != null && params.type != null ? params.type : "phong";
             if (loader.gameGraphicsPreset != null) {
                 if (GF.GRAPHICS_PRESET_PARAMS[loader.gameGraphicsPreset] != null && GF.GRAPHICS_PRESET_PARAMS[loader.gameGraphicsPreset].requiredMaterial) {
                     matType = GF.GRAPHICS_PRESET_PARAMS[loader.gameGraphicsPreset].requiredMaterial
@@ -134,51 +201,57 @@ GF.Utils = {
                 material = new THREE.MeshBasicMaterial();
             }
 
-            // color
-            material.color = new THREE.Color(params.color != null ? params.color : 0xFFFFFF);
+            if (params) {
+                // color
+                material.color = new THREE.Color(params.color != null ? params.color : 0xFFFFFF);
 
-            // emissive color
-            if (params.emissiveColor) {
-                material.emissive = new THREE.Color(params.emissiveColor);
-                material.emissiveMap = params.emissiveTexture != null ? loader.get(params.emissiveTexture) : null;
-                material.emissiveIntensity = params.emissiveIntensity != null ? params.emissiveIntensity : 1;
-            }
-
-            // texture
-            if (params.texture) {
-                material.map = loader.get(params.texture);
-            }
-
-            // opacity
-            material.opacity = params.opacity != null ? params.opacity : 1;
-            if (material.opacity != 1) {
-                material.transparent = true;
-            }
-
-            // reflection
-            if (params.reflectionTexture) {
-                material.envMap = loader.get(params.reflectionTexture);
-                material.reflectivity = params.reflectivity;
-                if (params.reflectivityOperation) {
-                    material.combine = params.reflectivityOperation;
+                // emissive color
+                if (params.emissiveColor) {
+                    material.emissive = new THREE.Color(params.emissiveColor);
+                    material.emissiveMap = params.emissiveTexture != null ? loader.get(params.emissiveTexture) : null;
+                    material.emissiveIntensity = params.emissiveIntensity != null ? params.emissiveIntensity : 1;
                 }
-            }
 
-            // specular
-            if (params.type === "phong" || params.type === "lambert") {
-                material.specular = new THREE.Color(params.specular != null ? params.specular : 0xFFFFFF); 
-                material.shininess = params.shininess;
-
-                if (params.specularTexture) {
-                    material.specularMap = loader.get(params.specularTexture);
+                // texture
+                if (params.texture) {
+                    material.map = loader.get(params.texture);
                 }
-            }
 
-            // bump
-            if (params.type === "phong") {
-                if (params.bumpTexture) {
-                    material.bumpMap = loader.get(params.bumpTexture);
-                    material.bumpScale = params.bumpScale;
+                // opacity
+                material.opacity = params.opacity != null ? params.opacity : 1;
+                if (material.opacity != 1) {
+                    material.transparent = true;
+                }
+
+                // reflection
+                if (params.reflectionTexture) {
+                    material.envMap = loader.get(params.reflectionTexture);
+                    material.reflectivity = params.reflectivity;
+                    if (params.reflectivityOperation) {
+                        material.combine = params.reflectivityOperation;
+                    }
+                }
+
+                // specular
+                if (params.type === "phong" || params.type === "lambert") {
+                    material.specular = new THREE.Color(params.specular != null ? params.specular : 0xFFFFFF); 
+                    if (params.shininess) {
+                        material.shininess = params.shininess;
+                    }
+
+                    if (params.specularTexture) {
+                        material.specularMap = loader.get(params.specularTexture);
+                    }
+                }
+
+                // bump
+                if (params.type === "phong") {
+                    if (params.bumpTexture) {
+                        material.bumpMap = loader.get(params.bumpTexture);
+                        if (params.bumpScale) {
+                            material.bumpScale = params.bumpScale;
+                        }
+                    }
                 }
             }
         }
@@ -210,30 +283,6 @@ GF.Utils = {
             return new GF.CollisionVolume(GF.COLLISION_BOX, [size.x, size.y, size.z], [offset.x, offset.y, offset.z]);
         }
         return null;
-    },
-
-    /**
-     * Get default material
-     * @param {sting} map 
-     */
-    getDefaultMaterial: function(loader, map, bumpMap, specularMap, alphaMap, emissiveMap, color, shininess, emissive, specular, bumpScale, flatShading, depthFunc, depthTest, depthWrite, transparent) {
-        return new THREE.MeshPhongMaterial({
-            map: map != null ? loader.get(map) : null,
-            bumpMap: bumpMap != null ? loader.get(bumpMap) : null,
-            specularMap: specularMap != null ? loader.get(specularMap) : null,
-            alphaMap: alphaMap != null ? loader.get(alphaMap) : null,
-            emissiveMap: emissiveMap != null ? loader.get(emissiveMap) : null,
-            color: color,
-            shininess: shininess != null ? shininess : 0,
-            emissive: emissive,
-            specular: specular,
-            bumpScale: bumpScale,
-            flatShading: flatShading,
-            depthFunc: depthFunc,
-            depthTest: depthTest,
-            depthWrite: depthWrite,
-            transparent: transparent
-        });
     },
 
     /**
