@@ -3,7 +3,6 @@
 This is a project targeting the web developers that want to make browser games with ease.
 You don't need to install large pieces of software, just include the minified script and you are good to go.
 
-
 This framework uses Three.Js as base for rendering and provides the scaffolding to create a game where you just have to write code for the logic of the game objects and their interactions. It has an internal engine that controls the game loop, the objects' lifecycle and all collision/physics interactions. It also offers a complete toolset of utils for game development.
 
 Main Features:
@@ -21,6 +20,11 @@ Main Features:
 * Default Material and Mesh generation
 * Support for rigged and animated models
 * Other generic utils
+
+There is also an in-game editor where you can build your scenes:
+
+![](https://github.com/freddykrunn/JGF/blob/main/images/jgf-editor-screenshot.png?raw=true)
+
 
 ### Get started
 
@@ -109,7 +113,7 @@ Currently there is no documentation available (future work). But here is a simpl
     (...)
 ```
 
-5. Its time to boot the game! You define the pipeline of your game, that is, you have to explicitly say what and when assets will be loaded, when the game loop starts running or stops. Consider the following examples:
+5. Its time to boot the game! You define the boot pipeline of your gamet, that is, you have to explicitly say what and when assets will be loaded, when the game loop starts running or stops. Consider the following examples:
 
     * **Simple case**: load all assets at beginning-> start game
 
@@ -129,6 +133,38 @@ Currently there is no documentation available (future work). But here is a simpl
         controller.pages.goTo(GF.GAME_PAGE);
     })
     ```
+6. To use the scene editor you just need to have a `editor.metadata.json` file with a structure like this:
+
+```javascript
+{
+    	"assets": [
+		{
+		    "name": "Player", // asset name
+		    "gameObject": "Player", // game object class name
+		    "model": "player-model", // (game asset id) model used to represent this asset in the editor (may not correspond to real model in the game)
+		    "texture": "player-texture", // (game asset id) texture used to represent this asset in the editor (may not correspond to real model in the game)
+		    "rotation": {"x": -90, "y": 180, "z": 0}, // pre-rotation (only for the display the asset in the editor)
+		    "scale": {"x": 0.5, "y": 0.5, "z": 0.5} // pre-scale (only for the display the asset in the editor)
+		},
+		{
+		    "name": "Rock-01",
+		    "gameObject": null, // this means that this object has no behaviour class associated and will be just a static decoration mesh
+		    "model": "rock-01-model",
+		    "texture": "rock-01-texture",
+		    "material": "rocks-material", // (game asset id) the material that will be used in the game
+		    "rayCollision": false, // (if has terrain ray collision) default value when adding a new object of this type to the scene (can be modified in the editor)
+		    "collision": true // (if has default generated collision box) default value when adding a new object of this type to the scene (can be modified in the editor)
+		}
+	]
+}
+```
+There are two tipes of assets: GameObject or Static Decoration Mesh. Each one of them is configured like in the example above.
+
+To boot the editor, simply use this boot option with the controller:
+
+```javascript
+controller.boot("editor", {metadata: "editor.metadata.json"});
+```
 
 ### Too confusing at first glance? Start from a template
 
@@ -140,6 +176,10 @@ Then, to start a new project from a template, you can run the following gulp com
     * `gulp init-blank`
 * Pong game template (Simple 2 player pong game)
     * `gulp init-pong`
+    ![](https://github.com/freddykrunn/JGF/blob/main/images/pong-template-screenshot.png)
+* Dynamic physics template (Bouncing balls)
+    * `gulp init-physics-example`
+    ![](https://github.com/freddykrunn/JGF/blob/main/images/physics-template-screenshot.png)
 
 Use the templates as an initial guidance to start your first game development using JGF.
 In the future, some example games will be provided in this repository too.
