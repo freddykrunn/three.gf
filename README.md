@@ -1,4 +1,4 @@
-## JGF - Javascript Game Framework
+## Three.gf - Javascript Game Framework
 
 This is a project targeting the web developers that want to make browser games with ease.
 You don't need to install large pieces of software, just include the minified script and you are good to go.
@@ -23,7 +23,7 @@ Main Features:
 
 There is also an in-game editor where you can build your scenes:
 
-![](https://github.com/freddykrunn/JGF/blob/main/images/jgf-editor-screenshot.png?raw=true)
+![](https://github.com/freddykrunn/three.gf/blob/main/images/editor-screenshot.png?raw=true)
 
 
 ### Get started
@@ -33,7 +33,7 @@ Currently there is no documentation available (future work). But here is a simpl
 1. This can be used in any javascript/HTML5 web app (existant or from scratch). You can, for example, assemble a simple http server in a folder and do the following:
 2. In your `index.html` include the framework script
 ```html
-    <script src="jgf.min.js" type="text/javascript"></script>
+    <script src="three.gf.min.js" type="text/javascript"></script>
 ```
 3. In your source code just instantiate a new `GF.GameController` like this:
 
@@ -181,12 +181,12 @@ Then, to start a new project from a template, you can run the following gulp com
     * `gulp init-blank`
 * Pong game template (Simple 2 player pong game)
     * `gulp init-pong`
-    ![](https://github.com/freddykrunn/JGF/blob/main/images/pong-template-screenshot.png)
+    ![](https://github.com/freddykrunn/three.gf/blob/main/images/pong-template-screenshot.png)
 * Dynamic physics template (Bouncing balls)
     * `gulp init-physics-example`
-    ![](https://github.com/freddykrunn/JGF/blob/main/images/physics-template-screenshot.png)
+    ![](https://github.com/freddykrunn/three.gf/blob/main/images/physics-template-screenshot.png)
 
-Use the templates as an initial guidance to start your first game development using JGF.
+Use the templates as an initial guidance to start your first game development using Three.gf.
 In the future, some example games will be provided in this repository too.
 
 ## Important Notice

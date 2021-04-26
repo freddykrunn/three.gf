@@ -44,7 +44,7 @@ gulp.task('build-dist', function() {
 
     return gulp.src(filesArray)
       .pipe(plumber())
-      .pipe(concat("jgf.min.js"))
+      .pipe(concat("three.gf.min.js"))
       .pipe(
         babel({
           plugins: [
@@ -61,7 +61,7 @@ gulp.task('build-dist', function() {
       /**
        * Copyright notice
        * 
-       * @credits JGF framework - Copyright (c) 2021 Frederico Gonçalves (MIT License) github.com/freddykrunn
+       * @credits Three.gf framework - Copyright (c) 2021 Frederico Gonçalves (MIT License) github.com/freddykrunn
        * 
        * Some third party libraries are bundled with the framework.
        * The credits and copyright notice are listed below:
@@ -84,7 +84,7 @@ gulp.task('init-blank', function() {
     fs.mkdirSync(dir + "src/objects");
     fs.mkdirSync(dir + "src/pages");
 
-    fs.copyFile("dist/jgf.min.js", dir + "/jgf.min.js", (err) => { 
+    fs.copyFile("dist/three.gf.min.js", dir + "/three.gf.min.js", (err) => { 
         if (err) { 
             console.log("Error:", err); 
         }
@@ -209,7 +209,7 @@ function onStop() {
           <!-- Main container -->
           <div id="main-container"></div>
           <!-- Framework-->
-          <script src="jgf.min.js" type="text/javascript"></script>
+          <script src="three.gf.min.js" type="text/javascript"></script>
           <!-- Objects -->
           <!-- insert object scripts to import here -->
           <!-- Pages -->
@@ -323,7 +323,7 @@ gulp.task('init-pong', function() {
     fs.mkdirSync(dir + "src/objects");
     fs.mkdirSync(dir + "src/pages");
 
-    fs.copyFile("dist/jgf.min.js", dir + "/jgf.min.js", (err) => { 
+    fs.copyFile("dist/three.gf.min.js", dir + "/three.gf.min.js", (err) => { 
         if (err) { 
             console.log("Error:", err); 
         }
@@ -522,7 +522,7 @@ fs.writeFileSync(dir + 'index.html', `
         <!-- Main container -->
         <div id="main-container"></div>
         <!-- Framework-->
-        <script src="jgf.min.js" type="text/javascript"></script>
+        <script src="three.gf.min.js" type="text/javascript"></script>
         <!-- Main -->
         <script src="main.js" type="text/javascript"></script>
     </body>
@@ -780,7 +780,7 @@ gulp.task('init-physics-example', function() {
     fs.mkdirSync(dir + "src");
     fs.mkdirSync(dir + "src/objects");
 
-    fs.copyFile("dist/jgf.min.js", dir + "/jgf.min.js", (err) => { 
+    fs.copyFile("dist/three.gf.min.js", dir + "/three.gf.min.js", (err) => { 
         if (err) { 
             console.log("Error:", err); 
         }
@@ -923,7 +923,7 @@ fs.writeFileSync(dir + 'index.html', `
         <!-- Main container -->
         <div id="main-container"></div>
         <!-- Framework-->
-        <script src="jgf.min.js" type="text/javascript"></script>
+        <script src="three.gf.min.js" type="text/javascript"></script>
         <!-- Main -->
         <script src="main.js" type="text/javascript"></script>
     </body>
