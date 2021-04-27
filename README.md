@@ -185,6 +185,9 @@ Then, to start a new project from a template, you can run the following gulp com
 * Dynamic physics template (Bouncing balls)
     * `gulp init-physics-example`
     ![](https://github.com/freddykrunn/three.gf/blob/main/images/physics-template-screenshot.png)
+* Scene example (To show the scene editor feature)
+    * `gulp init-scene-example`
+    ![](https://github.com/freddykrunn/three.gf/blob/main/images/scene-template-screenshot.png)
 
 Use the templates as an initial guidance to start your first game development using Three.gf.
 In the future, some example games will be provided in this repository too.

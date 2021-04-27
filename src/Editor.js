@@ -305,7 +305,7 @@
 
                 mesh._jgf_editor_object = Object.assign({id: GF.Utils.uniqueId(object.name)}, object);
                 mesh._jgf_editor_object.params = this.prettifyJSON(mesh._jgf_editor_object.params);
-                mesh._jgf_editor_object.rayCollision = mesh._jgf_editor_object.rayCollision != null ? mesh._jgf_editor_object.rayCollision : true;
+                mesh._jgf_editor_object.rayCollision = mesh._jgf_editor_object.rayCollision != null ? mesh._jgf_editor_object.rayCollision : false;
                 mesh._jgf_editor_object.collision = mesh._jgf_editor_object.collision != null ? mesh._jgf_editor_object.collision : false;
 
                 if (params) {

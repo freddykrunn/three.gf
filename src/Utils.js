@@ -183,16 +183,16 @@ GF.Utils = {
         } else {
             // use required material if a preset is defined
             var matType = params != null && params.type != null ? params.type : "phong";
-            if (loader.gameGraphicsPreset != null) {
+            if (loader.gameGraphicsPreset != null && matType !== "basic") {
                 if (GF.GRAPHICS_PRESET_PARAMS[loader.gameGraphicsPreset] != null && GF.GRAPHICS_PRESET_PARAMS[loader.gameGraphicsPreset].requiredMaterial) {
                     matType = GF.GRAPHICS_PRESET_PARAMS[loader.gameGraphicsPreset].requiredMaterial
                 }
             }
 
             if (matType === "phong") {
-                material = new THREE.MeshPhongMaterial()
+                material = new THREE.MeshPhongMaterial({shininess: 0})
             } else if (matType === "lambert") {
-                material = new THREE.MeshLambertMaterial();
+                material = new THREE.MeshLambertMaterial({shininess: 0});
             } else if (matType === "basic") {
                 material = new THREE.MeshBasicMaterial();
             } else if (matType === "toon") {
@@ -233,10 +233,12 @@ GF.Utils = {
                 }
 
                 // specular
-                if (params.type === "phong" || params.type === "lambert") {
+                if (matType === "phong" || matType === "lambert") {
                     material.specular = new THREE.Color(params.specular != null ? params.specular : 0xFFFFFF); 
                     if (params.shininess) {
                         material.shininess = params.shininess;
+                    } else {
+                        material.shininess = 0;
                     }
 
                     if (params.specularTexture) {
@@ -245,7 +247,7 @@ GF.Utils = {
                 }
 
                 // bump
-                if (params.type === "phong") {
+                if (matType === "phong") {
                     if (params.bumpTexture) {
                         material.bumpMap = loader.get(params.bumpTexture);
                         if (params.bumpScale) {

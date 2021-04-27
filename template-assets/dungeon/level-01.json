@@ -1,0 +1,952 @@
+{
+  "objects": [
+    {
+      "id": "Floor1619530467874001",
+      "name": "Floor",
+      "model": "floor-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": 2,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Floor1619530528318002",
+      "name": "Floor",
+      "model": "floor-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Floor1619530536826003",
+      "name": "Floor",
+      "model": "floor-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": -2,
+        "y": 0,
+        "z": -3
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Floor1619530541451004",
+      "name": "Floor",
+      "model": "floor-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": 1,
+        "y": 0,
+        "z": 1
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Floor1619530546390005",
+      "name": "Floor",
+      "model": "floor-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Floor1619530548696006",
+      "name": "Floor",
+      "model": "floor-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 2
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Floor1619530553711007",
+      "name": "Floor",
+      "model": "floor-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": 1,
+        "y": 0,
+        "z": 2
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Floor1619530556555008",
+      "name": "Floor",
+      "model": "floor-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": 1,
+        "y": 0,
+        "z": 3
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Floor1619530561259009",
+      "name": "Floor",
+      "model": "floor-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 3
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Floor16195305690670010",
+      "name": "Floor",
+      "model": "floor-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": 2,
+        "y": 0,
+        "z": 3
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Floor16195305750500011",
+      "name": "Floor",
+      "model": "floor-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": 2,
+        "y": 0,
+        "z": 2
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Floor16195305776590012",
+      "name": "Floor",
+      "model": "floor-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": 2,
+        "y": 0,
+        "z": 1
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Wall16195305846390013",
+      "name": "Wall",
+      "model": "wall-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": -1,
+        "y": 0,
+        "z": -3.45
+      },
+      "rotation": {
+        "x": 0,
+        "y": 1.5707963267948966,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Wall16195306343590021",
+      "name": "Wall",
+      "model": "wall-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": 2,
+        "y": 0,
+        "z": -0.45
+      },
+      "rotation": {
+        "x": 0,
+        "y": 1.5707963267948966,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Wall16195306415730022",
+      "name": "Wall",
+      "model": "wall-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": -0.45,
+        "y": 0,
+        "z": 3
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Wall16195306462610023",
+      "name": "Wall",
+      "model": "wall-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": -0.45,
+        "y": 0,
+        "z": 2
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Wall16195306493630024",
+      "name": "Wall",
+      "model": "wall-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": -0.45,
+        "y": 0,
+        "z": 1
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Wall16195306525940025",
+      "name": "Wall",
+      "model": "wall-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": -0.45,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Floor16195306569220026",
+      "name": "Floor",
+      "model": "floor-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Floor16195306607650027",
+      "name": "Floor",
+      "model": "floor-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": 1,
+        "y": 0,
+        "z": -1
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Floor16195306654290028",
+      "name": "Floor",
+      "model": "floor-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": 1,
+        "y": 0,
+        "z": -2
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Floor16195306771450029",
+      "name": "Floor",
+      "model": "floor-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": 1,
+        "y": 0,
+        "z": -3
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Floor16195306802230030",
+      "name": "Floor",
+      "model": "floor-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": -3
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Floor16195306840150031",
+      "name": "Floor",
+      "model": "floor-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": -1,
+        "y": 0,
+        "z": -3
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Wall16195306941160032",
+      "name": "Wall",
+      "model": "wall-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": 0.55,
+        "y": 0,
+        "z": -1.9000000000000001
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Wall16195307165200034",
+      "name": "Wall",
+      "model": "wall-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": 0.55,
+        "y": 0,
+        "z": -0.9
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Wall16195307354890037",
+      "name": "Wall",
+      "model": "wall-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": -0.45
+      },
+      "rotation": {
+        "x": 0,
+        "y": 1.5707963267948966,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Wall16195307422280038",
+      "name": "Wall",
+      "model": "wall-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": 1,
+        "y": 0,
+        "z": -3.45
+      },
+      "rotation": {
+        "x": 0,
+        "y": 1.5707963267948966,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Wall16195307446450039",
+      "name": "Wall",
+      "model": "wall-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": -3.45
+      },
+      "rotation": {
+        "x": 0,
+        "y": 1.5707963267948966,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Wall16195307588810043",
+      "name": "Wall",
+      "model": "wall-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": -2,
+        "y": 0,
+        "z": -3.45
+      },
+      "rotation": {
+        "x": 0,
+        "y": 1.5707963267948966,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Barrel16195307852380044",
+      "name": "Barrel",
+      "model": "barrel-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": -0.2,
+        "y": 0,
+        "z": -0.15000000000000002
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Barrel16195307928640045",
+      "name": "Barrel",
+      "model": "barrel-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": 1.5,
+        "y": 0,
+        "z": 3.3000000000000003
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Barrel16195308060390046",
+      "name": "Barrel",
+      "model": "barrel-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": 2.1,
+        "y": 0,
+        "z": -0.2
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Diamond16195308145220047",
+      "name": "Diamond",
+      "gameObject": "Diamond",
+      "params": [
+        "{{position}}"
+      ],
+      "rayCollision": false,
+      "collision": false,
+      "position": {
+        "x": 1,
+        "y": 0.1,
+        "z": -3
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Torch16195330635050041",
+      "name": "Torch",
+      "gameObject": "Torch",
+      "params": [
+        "{{position}}",
+        "{{rotation}}"
+      ],
+      "rayCollision": false,
+      "collision": false,
+      "position": {
+        "x": 2.1,
+        "y": 0.6000000000000001,
+        "z": -0.4
+      },
+      "rotation": {
+        "x": 0,
+        "y": -1.5707963267948966,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Torch16195330829450042",
+      "name": "Torch",
+      "gameObject": "Torch",
+      "params": [
+        "{{position}}",
+        "{{rotation}}"
+      ],
+      "rayCollision": false,
+      "collision": false,
+      "position": {
+        "x": -0.4,
+        "y": 0.6000000000000001,
+        "z": 1.5
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Diamond16195335204870043",
+      "name": "Diamond",
+      "gameObject": "Diamond",
+      "params": [
+        "{{position}}"
+      ],
+      "rayCollision": false,
+      "collision": false,
+      "position": {
+        "x": 2.2,
+        "y": 0.1,
+        "z": 3.1
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Diamond16195335764710044",
+      "name": "Diamond",
+      "gameObject": "Diamond",
+      "params": [
+        "{{position}}"
+      ],
+      "rayCollision": false,
+      "collision": false,
+      "position": {
+        "x": 0.4,
+        "y": 0.1,
+        "z": 0.1
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "id": "Barrel16195335821670045",
+      "name": "Barrel",
+      "model": "barrel-model",
+      "texture": "dungeon-texture",
+      "collision": true,
+      "terrainCollision": false,
+      "rayCollision": false,
+      "position": {
+        "x": -0.2,
+        "y": 0,
+        "z": 0.25
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    }
+  ],
+  "lights": [],
+  "ambient": {
+    "sun": null,
+    "sky": null
+  }
+}

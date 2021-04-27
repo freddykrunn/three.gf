@@ -82,7 +82,6 @@ gulp.task('init-blank', function() {
     fs.mkdirSync(dir + "assets");
     fs.mkdirSync(dir + "src");
     fs.mkdirSync(dir + "src/objects");
-    fs.mkdirSync(dir + "src/pages");
 
     fs.copyFile("dist/three.gf.min.js", dir + "/three.gf.min.js", (err) => { 
         if (err) { 
@@ -210,105 +209,10 @@ function onStop() {
           <div id="main-container"></div>
           <!-- Framework-->
           <script src="three.gf.min.js" type="text/javascript"></script>
-          <!-- Objects -->
-          <!-- insert object scripts to import here -->
-          <!-- Pages -->
-          <script src="src/pages/game-page.js" type="text/javascript"></script>
-          <script src="src/pages/loading-page.js" type="text/javascript"></script>
           <!-- Main -->
           <script src="main.js" type="text/javascript"></script>
       </body>
   </html>
-    `);
-  
-    // write game page file
-    fs.writeFileSync(dir + '/src/pages/game-page.js', `
-  /**
-   * Game Page
-   */
-  class GamePage extends GF.Page {
-      constructor(controller) {
-          super({
-              name: "game",
-              useCanvas: true
-          }, controller);
-      }
-  
-      /**
-       * On page open
-       */
-      onOpen() {
-          // start game
-          this.controller.game.start();
-      }
-  
-      /**
-       * On page close
-       */
-      onClose() {
-          // game stop
-          this.controller.game.stop();
-      }
-  
-      /**
-       * On page update
-       */
-      onUpdate(delta) {
-      }
-  }
-    `);
-  
-    // write game loading file
-    fs.writeFileSync(dir + '/src/pages/loading-page.js', `
-  /**
-   * Loading Page
-   */
-  class LoadingPage extends GF.Page {
-      constructor(controller) {
-          super({
-              name: "loading",
-              background: "black",
-              useCanvas: true
-          }, controller);
-          this.progress = 0;
-  
-          // loading text (example -> remove)
-          this.loadingText = this.canvas.createShapeText("loading-text", "", 50, 50, "white", "Arial", 5, null, "middle", "center")
-      }
-  
-      /**
-       * Update progress
-       * @param {number} progress 
-       */
-      updateProgress(progress) {
-          this.progress = progress;
-          // update loading text
-          this.loadingText.setProperty("text", "Loading (" + this.progress + "%)"); // (example -> remove)
-      }
-  
-      /**
-       * On page open
-       */
-      onOpen() {
-          this.updateProgress(0);
-          // update loading text
-          this.loadingText.setProperty("text", "Loading (0%)"); // (example -> remove)
-      }
-  
-      /**
-       * On page close
-       */
-      onClose() {
-  
-      }
-  
-      /**
-       * On page update
-       */
-      onUpdate(delta) {
-  
-      }
-  }
     `);
   
       return Promise.resolve(true);
@@ -1013,6 +917,306 @@ class Ball extends GF.PhysicsObject {
     }
 }
 
+`);
+    
+return Promise.resolve(true);
+});
+
+gulp.task('init-scene-example', function() {  
+    var dir = "template/";
+    fs.mkdirSync(dir);
+  
+    fs.mkdirSync(dir + "src");
+    fs.mkdirSync(dir + "src/objects");
+    fs.mkdirSync(dir + "assets");
+    fs.mkdirSync(dir + "assets/textures");
+    fs.mkdirSync(dir + "assets/scenes");
+    fs.mkdirSync(dir + "assets/models");
+
+    fs.copyFile("dist/three.gf.min.js", dir + "/three.gf.min.js", () => {}); 
+    fs.copyFile("template-assets/dungeon/barrel.obj", dir + "/assets/models/barrel.obj", () => {}); 
+    fs.copyFile("template-assets/dungeon/diamond.obj", dir + "/assets/models/diamond.obj", () => {}); 
+    fs.copyFile("template-assets/dungeon/floor.obj", dir + "/assets/models/floor.obj", () => {}); 
+    fs.copyFile("template-assets/dungeon/wall.obj", dir + "/assets/models/wall.obj", () => {}); 
+    fs.copyFile("template-assets/dungeon/torch.obj", dir + "/assets/models/torch.obj", () => {}); 
+    fs.copyFile("template-assets/dungeon/dungeon-texture.png", dir + "/assets/textures/dungeon-texture.png", () => {});  
+    fs.copyFile("template-assets/dungeon/smoke-puff.png", dir + "/assets/textures/smoke-puff.png", () => {});  
+    fs.copyFile("template-assets/dungeon/level-01.json", dir + "/assets/scenes/level-01.json", () => {});  
+
+// write main file
+fs.writeFileSync(dir + 'main.js', `  
+
+/**
+ * On page load
+ */
+function onPageLoad() {
+    var controller = new GF.GameController(
+        "#main-container",
+        {
+            params: {
+                antialias: true,
+                aspectRatio: GF.ASPECT_RATIO._16_9,
+                camera: {
+                    type: GF.CAMERA_TYPE.PERSPECTIVE,
+                    fov: 30,
+                    near: 0.1,
+                    far: 10000
+                },
+                shadows: true
+            },
+            onStart: onStart,
+            onUpdate: onUpdate,
+            onStop: onStop,
+        },
+        [],
+        {
+            objects: [
+                "diamond",
+                "torch"
+            ],
+            pages: [
+            ]
+        },
+        () => {
+            // === ASSETS
+
+            // textures
+            var baseTextureProperties = {
+                minFilter: THREE.NearestFilter,
+                magFilter: THREE.NearestFilter,
+                wrapS: THREE.RepeatWrapping,
+                wrapT: THREE.RepeatWrapping
+            }
+            controller.addAsset("dungeon-texture", GF.AssetType.Texture, Object.assign({path: "assets/textures/dungeon-texture.png"}, baseTextureProperties));
+            controller.addAsset("smoke-puff-texture", GF.AssetType.Texture, Object.assign({path: "assets/textures/dungeon-texture.png"}, {}));
+        
+            // models
+            controller.addAsset("barrel-model", GF.AssetType.Model3D_OBJ, "assets/models/barrel.obj", );
+            controller.addAsset("diamond-model", GF.AssetType.Model3D_OBJ, "assets/models/diamond.obj");
+            controller.addAsset("torch-model", GF.AssetType.Model3D_OBJ, "assets/models/torch.obj");
+            controller.addAsset("floor-model", GF.AssetType.Model3D_OBJ, "assets/models/floor.obj");
+            controller.addAsset("wall-model", GF.AssetType.Model3D_OBJ, "assets/models/wall.obj");
+
+            // scenes
+            controller.addAsset("level-01", GF.AssetType.JSON, "assets/scenes/level-01.json");
+
+            // load all assets and go to main page
+            controller.boot("default");
+
+            // (boot editor) uncomment line below and comment line above to boot the game scene editor
+            // controller.boot("editor", {metadata: "editor.metadata.json"});
+
+            // after open editor, open file "scenes/level-01.json" to edit
+        }
+    );
+}
+
+var cube;
+
+/**
+ * Game init
+ */
+function onStart() {
+    // set environment lighting
+    this.setEnvironmentLight({
+        sun: null,
+        ambient: {
+            skyColor: 0xFFCCAA,
+            groundColor: 0xFFCCAA,
+            intensity: 0.25
+        }
+    })
+
+    // set initial camera position and target
+    this.setCamera({x: 6, y: 5, z: 6}, {x: 1, y: 0, z: 1});
+
+    // load a scene
+    this.levelScene = new GF.Scene(this, "level-01", "jgf");
+    this.levelScene.init();
+}
+
+/**
+ * Game update
+ */
+function onUpdate(delta) {
+}
+
+/**
+ * Game destroy
+ */
+function onStop() {
+    this.levelScene.destroy();
+}  
+
+`);
+  
+// write index file
+fs.writeFileSync(dir + 'index.html', `
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+            body {
+                padding: 0;
+                margin: 0;
+                background: black;
+                user-select: none;
+            }
+
+            #main-container {
+                width: 100vw;
+                height: 100vh;
+                max-width: 100vw;
+                max-height: 100vh;
+                overflow: hidden;
+            }
+        </style>
+    </head>
+    <body onload="onPageLoad()">
+        <!-- Main container -->
+        <div id="main-container"></div>
+        <!-- Framework-->
+        <script src="three.gf.min.js" type="text/javascript"></script>
+        <!-- Main -->
+        <script src="main.js" type="text/javascript"></script>
+    </body>
+</html>
+`);
+
+fs.writeFileSync(dir + '/editor.metadata.json', `
+{
+    "assets": [
+        {
+            "name": "Diamond",
+            "gameObject": "Diamond",
+            "model": "diamond-model",
+            "texture": "dungeon-texture",
+            "params": [
+                "{{position}}"
+            ]
+        },
+        {
+            "name": "Torch",
+            "gameObject": "Torch",
+            "model": "torch-model",
+            "texture": "dungeon-texture",
+            "params": [
+                "{{position}}",
+                "{{rotation}}"
+            ]
+        },
+        {
+            "name": "Barrel",
+            "model": "barrel-model",
+            "texture": "dungeon-texture",
+            "collision": true,
+            "terrainCollision": false
+        },
+        {
+            "name": "Floor",
+            "model": "floor-model",
+            "texture": "dungeon-texture",
+            "collision": true,
+            "terrainCollision": false
+        },
+        {
+            "name": "Wall",
+            "model": "wall-model",
+            "texture": "dungeon-texture",
+            "collision": true,
+            "terrainCollision": false
+        }
+    ]
+}
+`)
+  
+// write game objects files
+fs.writeFileSync(dir + '/src/objects/diamond.js', `
+class Diamond extends GF.GameObject {
+    constructor(position) {
+        super({
+            model: "diamond-model",
+            material: {
+                type: "basic",
+                color: 0x33FFFF,
+                texture: "dungeon-texture",
+                opacity: 0.75
+            },
+            position: new THREE.Vector3(position.x, position.y, position.z),
+            shadows: {
+                cast: false,
+                receive: false
+            }
+        });
+    }
+
+    onInit() {
+        super.onInit();
+        this.light = new THREE.PointLight(0x55ffff, 1, 1);
+        this.addToScene(this.light);
+    }
+
+    onUpdate(delta) {
+        this.light.position.copy(this.position);
+        this.rotation.y += 0.0002 * delta;
+    }
+
+    onDestroy() {
+        this.removeFromScene(this.light);
+    }
+}
+`);
+
+fs.writeFileSync(dir + '/src/objects/torch.js', `
+class Torch extends GF.GameObject {
+    constructor(position, rotation) {
+        super({
+            model: "torch-model",
+            material: {
+                type: "basic",
+                color: 0xFFFFFF,
+                texture: "dungeon-texture"
+            },
+            position: new THREE.Vector3(position.x, position.y, position.z),
+            rotation: new THREE.Vector3(rotation.x, rotation.y, rotation.z),
+            shadows: {
+                cast: false,
+                receive: false
+            }
+        });
+    }
+
+    onInit() {
+        super.onInit();
+        // light
+        this.light = new THREE.PointLight(0xffaa55, 1, 4);
+        this.light.castShadow = true; 
+        this.light.shadow.camera.near = 0.01;
+        this.light.position.set(0.25, 0, 0);
+        this.object3D.add(this.light);
+
+        // particles
+        
+        this.fireParticles = new GF.ParticleSystem({
+            texture: "smoke-puff-texture",
+            color: 0xffba75,
+            opacity: 1,
+            particleCount: 50,
+            size: 300,
+            velocity: new THREE.Vector3(0,0.0004,0),
+            lifetime: 500,
+            spawnDelay: 50,
+            spawnBox: new THREE.Vector3(0.1, 0, 0.1),
+            isParticlePositionLocal: true,
+            hasSizeAttenuation: true
+        });
+        this.game.addObject(null, this.fireParticles);
+        this.fireParticles.position.set(this.position.x + 0, this.position.y + 0.2, this.position.z + 0);
+    }
+
+    onUpdate(delta) {
+    }
+}
 `);
     
 return Promise.resolve(true);
