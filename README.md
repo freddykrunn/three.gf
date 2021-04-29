@@ -1,9 +1,8 @@
 ## Three.gf - Javascript Game Framework
 
-This is a project targeting the web developers that want to make browser games with ease.
-You don't need to install large pieces of software, just include the minified script and you are good to go.
+This is a project with the aim to provide a solid framework to facilitate the development of browser games, providing a light dependency script that can be included in any HTML5 application.
 
-This framework uses Three.Js as base for rendering and provides the scaffolding to create a game where you just have to write code for the logic of the game objects and their interactions. It has an internal engine that controls the game loop, the objects' lifecycle and all collision/physics interactions. It also offers a complete toolset of utils for game development.
+This framework uses Three.Js as base for the rendering tasks and provides the scaffolding to create a game where you just have to write code for the logic of the game objects and their interactions. It has an internal engine that controls the game loop, the objects' lifecycle and all collision/physics interactions. It also offers a complete toolset of utils for game development.
 
 Main Features:
 
@@ -21,7 +20,7 @@ Main Features:
 * Support for rigged and animated models
 * Other generic utils
 
-There is also an in-game editor where you can build your scenes:
+There is also an scene editor where you can build your game scenes/levels:
 
 ![](https://github.com/freddykrunn/three.gf/blob/main/images/editor-screenshot.png?raw=true)
 
@@ -113,10 +112,14 @@ Currently there is no documentation available (future work). But here is a simpl
     (...)
 ```
 
-5. Its time to boot the game! You define the boot pipeline of your gamet, that is, you have to explicitly say what and when assets will be loaded, when the game loop starts running or stops. Consider the following examples:
+5. Its time to boot the game! You define the boot pipeline of your game, by explicitly saying:
+ 	* What and when assets will be loaded
+ 	* When the game loop starts running or stops.
+ 
+	Consider the following examples:
 
     * **Simple case**: load all assets at beginning-> start game
-
+    * 
     * **Complex case**:
       load some assets -> go to menu page -> go to select level page -> load level specific assets -> start the game loop
 
@@ -130,7 +133,7 @@ Currently there is no documentation available (future work). But here is a simpl
 
     ```javascript
     controller.loadAllAssets(() => {
-        controller.pages.goTo(GF.GAME_PAGE);
+	controller.pages.goTo(GF.GAME_PAGE);
     })
     ```
 6. To use the scene editor you just need to have a `editor.metadata.json` file with a structure like this:
