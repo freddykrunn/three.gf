@@ -7,7 +7,7 @@ GF.Scene = class Scene {
      * Create a template scene from an asset JSON file
      * @param {GF.Game} game the game instance pointer
      * @param {string} sceneAsset the asset of the scene file
-     * @param {'three' | 'jgf'} sceneType the scene type (if is a file procuded in Three.gf editor it should be 'jgf' instead if
+     * @param {'three' | 'jgf'} sceneType the scene type (if is a file produced in Three.gf editor it should be 'jgf' instead if
      * it is produced by THREEjs json file it should be 'three')
      */
     constructor(game, sceneAsset, sceneType) {	     

@@ -146,12 +146,12 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
      */
     _internalUpdate(delta) {
         // move object with speed
-        this.object3D.position.x += this.speed.x * delta * DELTA_MULTIPLIER;
-        this.object3D.position.y += this.speed.y * delta * DELTA_MULTIPLIER;
-        this.object3D.position.z += this.speed.z * delta * DELTA_MULTIPLIER;
+        this.object3D.position.x += this.speed.x * delta;
+        this.object3D.position.y += this.speed.y * delta;
+        this.object3D.position.z += this.speed.z * delta;
 
         if (this.rotationMatchesDirection) {
-            this.rotateTowardsAngle(delta, this.getDirectionAngle());
+            this.syncRotationWithDirection(delta);
         }
 
         // check ray collision
@@ -267,7 +267,7 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
     rotateTowardsAngle(delta, angle) {
         var quaternion = new THREE.Quaternion();
         quaternion.setFromAxisAngle( new THREE.Vector3( 0, 1, 0 ), angle );
-        this.object3D.quaternion.slerp( quaternion, 0.01 * delta );
+        this.object3D.quaternion.slerp( quaternion, delta * 10 );
     }
 
     /**
@@ -281,8 +281,8 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
     /**
      * Sync rotation with direction
      */
-    syncRotationWithDirection() {
-        this.rotateToAngle(this.getDirectionAngle());
+    syncRotationWithDirection(delta) {
+        this.rotateTowardsAngle(delta, this.getDirectionAngle());
     }
 
     /**
@@ -347,9 +347,9 @@ GF.PhysicsObject = class PhysicsObject extends GF.GameObject {
      * @param {THREE.vector3} force the force to apply
      */
     applyForce(force) {
-        this._resultForce.x += force.x * DELTA_MULTIPLIER;
-        this._resultForce.y += force.y * DELTA_MULTIPLIER;
-        this._resultForce.z += force.z * DELTA_MULTIPLIER;
+        this._resultForce.x += force.x;
+        this._resultForce.y += force.y;
+        this._resultForce.z += force.z;
     }
 
     //#region life cycle

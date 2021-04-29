@@ -170,9 +170,9 @@ function onStart() {
  * Game update
  */
 function onUpdate(delta) {
-    cube.rotation.x += 0.0005 * delta;
-    cube.rotation.y += 0.0010 * delta;
-    cube.rotation.z -= 0.0015 * delta;
+    cube.rotation.x += 0.5 * delta;
+    cube.rotation.y += 1 * delta;
+    cube.rotation.z -= 1.5 * delta;
 }
 
 /**
@@ -608,7 +608,7 @@ class Ball extends GF.PhysicsObject {
 
 // write game loading file
 fs.writeFileSync(dir + '/src/objects/paddle.js', `
-const PADDLE_SPEED = 3 // 3 m/s
+const PADDLE_SPEED = 30 // 30 m/s
 
 /**
  * Paddle
@@ -655,13 +655,13 @@ const PADDLE_SPEED = 3 // 3 m/s
 
     /**
      * On update logic
-     * @param {number} delta delta-time in milliseconds
+     * @param {number} delta delta-time in seconds
      */
     onUpdate(delta) {
         if (this.input.isPressed(this.upKey)) {
-            this.position.z += -PADDLE_SPEED * delta * 0.01; // We multiply by 0.01, because the delta came in 'ms' and we want to have the speed defined as 'm/s' so we convert to seconds the deltaTime
+            this.position.z += -PADDLE_SPEED * delta;
         } else if (this.input.isPressed(this.downKey)) {
-            this.position.z += PADDLE_SPEED * delta * 0.01;
+            this.position.z += PADDLE_SPEED * delta;
         }
 
         if (this.position.z > 10) {
@@ -888,7 +888,7 @@ class Ball extends GF.PhysicsObject {
             });
 
             this.onKey("space", GF.KeyPressState.PRESSED, () => {
-                this.applyForce({x: 0, y: 20000, z: 0})
+                this.applyForce({x: 0, y: 20, z: 0})
             });
         }
     }
@@ -896,22 +896,22 @@ class Ball extends GF.PhysicsObject {
     /**
      * On update 
      * (Called every frame)
-     * @param delta the time interval of the frame in milliseconds
+     * @param delta the time interval of the frame in seconds
      */
     onUpdate(delta) {
         if (this.controls) {
             if (this.input.isPressed("up")) {
-                this.applyForce({x: 0, y: 0, z: -350})
+                this.applyForce({x: 0, y: 0, z: -0.35})
             }
             else if (this.input.isPressed("down")) {
-                this.applyForce({x: 0, y: 0, z: 350})
+                this.applyForce({x: 0, y: 0, z: 0.35})
             }
 
             if (this.input.isPressed("left")) {
-                this.applyForce({x: -350, y: 0, z: 0})
+                this.applyForce({x: -0.35, y: 0, z: 0})
             }
             else if(this.input.isPressed("right")) {
-                this.applyForce({x: 350, y: 0, z: 0})
+                this.applyForce({x: 0.35, y: 0, z: 0})
             }
         }
     }
@@ -1158,7 +1158,7 @@ class Diamond extends GF.GameObject {
 
     onUpdate(delta) {
         this.light.position.copy(this.position);
-        this.rotation.y += 0.0002 * delta;
+        this.rotation.y += 0.2 * delta;
     }
 
     onDestroy() {

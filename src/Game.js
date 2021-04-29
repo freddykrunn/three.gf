@@ -28,7 +28,12 @@ GF.COLLISION_CYLINDER = "collision_cylinder";
 /**
  * Delta time multiplier (convert 'ms' to 's')
  */
-const DELTA_MULTIPLIER = 0.001;
+const DELTA_TO_SECONDS = 0.001;
+
+/**
+ * Delta time multiplier (convert 's' to 'ms')
+ */
+ const DELTA_TO_MILLISECONDS = 1000;
 
 /**
  * Ideal FPS 
@@ -1008,20 +1013,22 @@ GF.Game = class Game extends GF.StateMachine {
 
     /**
      * update
-     * @param {number} delta 
+     * @param {number} delta in ms
      */
     _update(delta) {
         this.eventManager._update(delta);
         this.inputManager._update(delta);
         this.animationManager._update(delta);
 
-        this.onUpdate(delta);
+        var deltaInSeconds = delta * DELTA_TO_SECONDS
+
+        this.onUpdate(deltaInSeconds);
         if (this._updateCallback) {
-            this._updateCallback(delta);
+            this._updateCallback(deltaInSeconds);
         }
 
         for (var i = 0; i < this._objectsToUpdateArray.length; i++) {
-            this._objectsToUpdateArray[i]._update(delta);
+            this._objectsToUpdateArray[i]._update(deltaInSeconds);
         }
 
         this.collisionManager._update();

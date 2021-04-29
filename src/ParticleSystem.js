@@ -475,9 +475,9 @@ GF.ExplosionEffect = function(game, position, haloParticles, fireParticles) {
 				if (particlesAttributes.life.array[i] > 0) {
 					positionIndex = i * 3;
 					// position
-					particlesAttributes.position.array[positionIndex] += particlesAttributes.speed.array[positionIndex] * delta * 0.01;
-					particlesAttributes.position.array[positionIndex + 1] += particlesAttributes.speed.array[positionIndex + 1] * delta * 0.01;
-					particlesAttributes.position.array[positionIndex + 2] += particlesAttributes.speed.array[positionIndex + 2] * delta * 0.01;
+					particlesAttributes.position.array[positionIndex] += particlesAttributes.speed.array[positionIndex] * delta;
+					particlesAttributes.position.array[positionIndex + 1] += particlesAttributes.speed.array[positionIndex + 1] * delta;
+					particlesAttributes.position.array[positionIndex + 2] += particlesAttributes.speed.array[positionIndex + 2] * delta;
 	
 					// set opacity
 					particlesAttributes.opacity.array[i] = particlesAttributes.life.array[i] / particles.life;

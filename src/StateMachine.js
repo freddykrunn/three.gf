@@ -132,7 +132,7 @@ GF.StateMachine = class StateMachine {
 
         if (this.onTick) {
             this._tickDeltaCount += delta;
-            if (this._tickDeltaCount >= 1000) {
+            if (this._tickDeltaCount >= 1) {
                 this._tickDeltaCount = 0;
                 this.onTick();
             }

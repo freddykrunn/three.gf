@@ -470,7 +470,7 @@ GF.GameObject = class GameObject extends GF.StateMachine {
 
         // update animation mixer
         if (this._animationMixer) {
-            this._animationMixer.update(delta * DELTA_MULTIPLIER);
+            this._animationMixer.update(delta);
 
             if (!this._animationActions[this.animationActiveAction].isRunning() && this.currentAnimationFinishCallback) {
                 this.currentAnimationFinishCallback();

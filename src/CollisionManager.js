@@ -37,6 +37,7 @@ GF.CollisionManager = class CollisionManager {
             (volume1.shape.sizeHalf[2] + volume2.shape.sizeHalf[2]) - Math.abs(this._posDiff[2])
         ]
 
+        // TODO: use epsilon for floating point comparisons
         if (this._diff[0] >= 0 && this._diff[1] >= 0 && this._diff[2] >= 0){
             if (this._diff[0] <= this._diff[1] && this._diff[0] <= this._diff[2]){
                 this._sign = Math.sign(this._posDiff[0]);
@@ -116,17 +117,17 @@ GF.CollisionManager = class CollisionManager {
         // truncate object position and apply collision speed
         if (gameObject != null && gameObject.dynamic === true && gameObject.speed != null) {
             // truncate object position
-            if (normal[0] != 0) {
+            if (normal[0] != 0 && Math.sign(normal[0]) != Math.sign(gameObject.speed.x)) {
                 gameObject.speed.x = collisionSpeed[0];
                 gameObject.object3D.position.x = (normal[0] * collisionDistance[0]) + otherVolumePosition[0] - volumeOffset[0];
                 gameObject._collisionNormal.x += normal[0];
             }
-            if (normal[1] != 0) {
+            if (normal[1] != 0 && Math.sign(normal[1]) != Math.sign(gameObject.speed.y)) {
                 gameObject.speed.y = collisionSpeed[1];
                 gameObject.object3D.position.y = (normal[1] * collisionDistance[1]) + otherVolumePosition[1] - volumeOffset[1];
                 gameObject._collisionNormal.y += normal[1];
             }
-            if (normal[2] != 0) {
+            if (normal[2] != 0 && Math.sign(normal[2]) != Math.sign(gameObject.speed.z)) {
                 gameObject.speed.z = collisionSpeed[2];
                 gameObject.object3D.position.z = (normal[2] * collisionDistance[2]) + otherVolumePosition[2] - volumeOffset[2];
                 gameObject._collisionNormal.z += normal[2];
