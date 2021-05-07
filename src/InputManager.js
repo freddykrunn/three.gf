@@ -407,7 +407,7 @@ GF.GameInputManager = class GameInputManager {
         // connected handler
         this._gamepadHandlerConnected = (event) => {
             console.log("[INFO] (Gamepad connected): " + event.gamepad.id);
-            this._game.fireEvent(INPUT_GAMEPAD_CONNECTED, {gamepad: event.gamepad.index});
+            this._game.publish(INPUT_GAMEPAD_CONNECTED, {gamepad: event.gamepad.index});
 
             this._copyGamePadInitialValues();
         }
@@ -415,7 +415,7 @@ GF.GameInputManager = class GameInputManager {
         // disconnected handler
         this._gamepadHandlerDisconnected = (event) => {
             console.log("[INFO] (Gamepad disconnected): " + event.gamepad.id);
-            this._game.fireEvent(INPUT_GAMEPAD_DISCONNECTED, {gamepad: event.gamepad.index});
+            this._game.publish(INPUT_GAMEPAD_DISCONNECTED, {gamepad: event.gamepad.index});
 
             this._copyGamePadInitialValues();
         }

@@ -63,7 +63,7 @@ function getParticleMaterial(game, texture, color, opacity, isParticlePositionLo
 /**
  * ParticleSystem
  */
-GF.ParticleSystem = class ParticleSystem extends GF.GameObject {
+GF.ParticleSystem = class ParticleSystem extends GF.EmptyObject {
 
     /**
      * Particle System
@@ -86,7 +86,8 @@ GF.ParticleSystem = class ParticleSystem extends GF.GameObject {
 	 * * `offset: THREE.Vector3` - particles position offset
      */
 	constructor(params) {
-		super(new THREE.Object3D(), null, false);
+		super();
+		this.object3D = new THREE.Object3D();
 		this.color = params.color != null ? params.color : 0xFFFFFF;
 		this.opacity = params.opacity;
 		this.texture = params.texture;
@@ -171,13 +172,14 @@ GF.ParticleSystem = class ParticleSystem extends GF.GameObject {
 		
 		// create the particle system
 		this.object3D = new THREE.Points(geometry, material);
+		this.position = this.object3D.position;
+		this.attributes = this.object3D.geometry.attributes;
+		this.addToScene(this.object3D);
 
 		// update the particle system to sort the particles
 		this.object3D.sortParticles = true;
 
 		this.timeToSpawn = 0;
-
-		super.onInit();
 	}
 
     /**
@@ -185,8 +187,6 @@ GF.ParticleSystem = class ParticleSystem extends GF.GameObject {
 	 * @param {number} delta 
      */
 	onUpdate(delta) {
-		super.onUpdate(delta);
-
 		if (this.object3D.position.distanceTo(this.game.camera.position) >= this.game.viewFarPlane) {
 			return;
 		}
@@ -267,13 +267,6 @@ GF.ParticleSystem = class ParticleSystem extends GF.GameObject {
 		this.attributes.life.needsUpdate = true;
 		this.attributes.size.needsUpdate = true;
 		this.attributes.opacity.needsUpdate = true;
-	}
-
-    /**
-     * Destroy
-     */
-	onDestroy() {
-
 	}
 }
 

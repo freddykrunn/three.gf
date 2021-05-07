@@ -20,11 +20,12 @@ gulp.task('build-dist', function() {
     filesArray.push(...[
         "./vendor/*.js",
         "./src/StateMachine.js",
+        "./src/EmptyObject.js",
         "./src/GameObject.js",
         "./src/AnimationManager.js",
         "./src/AssetsLoader.js",
         "./src/EventManager.js",
-        "./src/CollisionManager.js",
+        "./src/PhysicsManager.js",
         "./src/Game.js",
         "./src/InputManager.js",
         "./src/Utils.js",
@@ -33,10 +34,7 @@ gulp.task('build-dist', function() {
         "./src/Page.js",
         "./src/TextureAnimator.js",
         "./src/Scene.js",
-        "./src/GameObject.js",
         "./src/ParticleSystem.js",
-        "./src/PhysicsObject.js",
-        "./src/StaticObject.js",
         "./src/CameraShaker.js",
         "./src/Editor.js"
     ]);
@@ -331,7 +329,7 @@ function onStart() {
         position: {x: 0, y: 0, z: -12.5}
     });
     this.addToScene(wall01);
-    this.collisionManager.addVolume(null, GF.Utils.buildCollisionVolumeFrom3DObject(wall01), wall01.position, false);
+    this.physics.addVolume(null, GF.Utils.buildCollisionVolumeFrom3DObject(wall01), wall01.position, false);
 
     var wall02 = GF.Utils.build3DObject(this.loader, {
         model: wallGeometry,
@@ -343,7 +341,7 @@ function onStart() {
         position: {x: 0, y: 0, z: 12.5}
     });
     this.addToScene(wall02);
-    this.collisionManager.addVolume(null, GF.Utils.buildCollisionVolumeFrom3DObject(wall02), wall02.position, false);
+    this.physics.addVolume(null, GF.Utils.buildCollisionVolumeFrom3DObject(wall02), wall02.position, false);
 
     // set environment lighting
     this.setEnvironmentLight({
@@ -377,7 +375,7 @@ function onStart() {
     this.setCamera({x: 50, y: 10, z: 50}, {x: 0, y: 0, z: 0});
 
     // animate camera position and after start the game after
-    this.animationManager.play(this.camera.position, ["x", "y", "z"], [0, 30, 30], GF.AnimationType.SLOW_DOWN, 1500, () => {
+    this.animation.play(this.camera.position, ["x", "y", "z"], [0, 30, 30], GF.AnimationType.SLOW_DOWN, 1500, () => {
         player1.reset();
         player2.reset();
         ball.reset();
@@ -467,7 +465,7 @@ class PongMainPage extends GF.Page {
             this.player02Score.setProperty("text", " Red: " + value)
         });
 
-        this.player02ScoreChangeSubscription = this.controller.game.onEvent(EVENT_BALL_LAUNCH_COUNTDOWN, (countdown) => {
+        this.player02ScoreChangeSubscription = this.controller.game.listen(EVENT_BALL_LAUNCH_COUNTDOWN, (countdown) => {
             this.ballLaunchCountdown.setProperty("text", countdown > 0 ? countdown : "");
         })
     }
@@ -493,7 +491,7 @@ const BALL_SPEED = 25;
 /**
  * Ball
  */
-class Ball extends GF.PhysicsObject {
+class Ball extends GF.GameObject {
     constructor() {
         super({
             model: {
@@ -510,7 +508,6 @@ class Ball extends GF.PhysicsObject {
                 receive: true
             }
         },
-        null,
         {
             solid: true,
             dynamic: true,
@@ -558,8 +555,6 @@ class Ball extends GF.PhysicsObject {
      * On init
      */
     onInit() {
-        // very important: always call super onInit
-        super.onInit();
         this.position.set(0,-5,0);
     }
 
@@ -569,8 +564,6 @@ class Ball extends GF.PhysicsObject {
      * @param delta the time interval of the frame in milliseconds
      */
     onUpdate(delta) {
-        // very important: always call super onInit
-        super.onUpdate();
         if (this.position.x < -22) {
             this.game.incrementVariable(VAR_PLAYER_2_SCORE, 1);
             this.reset();
@@ -588,12 +581,12 @@ class Ball extends GF.PhysicsObject {
         if (this.startLaunchCountdown === true) {
             this.launchCountdown = 3;
             this.position.set(0,0,0);
-            this.game.fireEvent(EVENT_BALL_LAUNCH_COUNTDOWN, this.launchCountdown);
+            this.game.publish(EVENT_BALL_LAUNCH_COUNTDOWN, this.launchCountdown);
             this.startLaunchCountdown = false;
         } else {
             if (this.launchCountdown > 0) {
                 this.launchCountdown--;
-                this.game.fireEvent(EVENT_BALL_LAUNCH_COUNTDOWN, this.launchCountdown);
+                this.game.publish(EVENT_BALL_LAUNCH_COUNTDOWN, this.launchCountdown);
     
                 if (this.launchCountdown == 0) {
                     this.launch();
@@ -613,7 +606,7 @@ const PADDLE_SPEED = 30 // 30 m/s
 /**
  * Paddle
  */
- class Paddle extends GF.PhysicsObject {
+ class Paddle extends GF.GameObject {
     constructor(color, position, upKey, downKey) {
         super({
             model: {
@@ -631,7 +624,6 @@ const PADDLE_SPEED = 30 // 30 m/s
             },
             position: position
         },
-        null,
         {
             solid: true,
             dynamic: false,
@@ -658,9 +650,9 @@ const PADDLE_SPEED = 30 // 30 m/s
      * @param {number} delta delta-time in seconds
      */
     onUpdate(delta) {
-        if (this.input.isPressed(this.upKey)) {
+        if (this.game.input.isPressed(this.upKey)) {
             this.position.z += -PADDLE_SPEED * delta;
-        } else if (this.input.isPressed(this.downKey)) {
+        } else if (this.game.input.isPressed(this.downKey)) {
             this.position.z += PADDLE_SPEED * delta;
         }
 
@@ -753,13 +745,13 @@ function onStart() {
     });
 
     this.addToScene(gameFloor);
-    this.collisionManager.addVolume(null, GF.Utils.buildCollisionVolumeFrom3DObject(gameFloor), {x: 0, y: 0, z: 0}, false);
+    this.physics.addVolume(null, GF.Utils.buildCollisionVolumeFrom3DObject(gameFloor), {x: 0, y: 0, z: 0}, false);
 
     // collision walls
-    this.collisionManager.addVolume(null, new GF.CollisionVolume(GF.COLLISION_BOX, [1, 8, 26]), {x: 20, y: 4, z: 0}, false);
-    this.collisionManager.addVolume(null, new GF.CollisionVolume(GF.COLLISION_BOX, [1, 8, 26]), {x: -20, y: 4, z: 0}, false);
-    this.collisionManager.addVolume(null, new GF.CollisionVolume(GF.COLLISION_BOX, [40, 8, 1]), {x: 0, y: 4, z: -12.5}, false);
-    this.collisionManager.addVolume(null, new GF.CollisionVolume(GF.COLLISION_BOX, [40, 8, 1]), {x: 0, y: 4, z: 12.5}, false);
+    this.physics.addVolume(null, new GF.CollisionVolume(GF.COLLISION_BOX, [1, 8, 26]), {x: 20, y: 4, z: 0}, false);
+    this.physics.addVolume(null, new GF.CollisionVolume(GF.COLLISION_BOX, [1, 8, 26]), {x: -20, y: 4, z: 0}, false);
+    this.physics.addVolume(null, new GF.CollisionVolume(GF.COLLISION_BOX, [40, 8, 1]), {x: 0, y: 4, z: -12.5}, false);
+    this.physics.addVolume(null, new GF.CollisionVolume(GF.COLLISION_BOX, [40, 8, 1]), {x: 0, y: 4, z: 12.5}, false);
 
     // set environment lighting
     this.setEnvironmentLight({
@@ -841,7 +833,7 @@ const BALL_SPEED = 25;
 /**
  * Ball
  */
-class Ball extends GF.PhysicsObject {
+class Ball extends GF.GameObject {
     constructor(position, controls) {
         super({
             model: {
@@ -859,7 +851,6 @@ class Ball extends GF.PhysicsObject {
                 receive: true
             }
         },
-        null,
         {
             solid: true,
             dynamic: true,
@@ -875,7 +866,6 @@ class Ball extends GF.PhysicsObject {
      * On init
      */
     onInit() {
-        super.onInit();
         this.speed.set(Math.random() * 15, 25, Math.random() * 15);
 
         if (this.controls) {
@@ -900,17 +890,17 @@ class Ball extends GF.PhysicsObject {
      */
     onUpdate(delta) {
         if (this.controls) {
-            if (this.input.isPressed("up")) {
+            if (this.game.input.isPressed("up")) {
                 this.applyForce({x: 0, y: 0, z: -0.35})
             }
-            else if (this.input.isPressed("down")) {
+            else if (this.game.input.isPressed("down")) {
                 this.applyForce({x: 0, y: 0, z: 0.35})
             }
 
-            if (this.input.isPressed("left")) {
+            if (this.game.input.isPressed("left")) {
                 this.applyForce({x: -0.35, y: 0, z: 0})
             }
-            else if(this.input.isPressed("right")) {
+            else if(this.game.input.isPressed("right")) {
                 this.applyForce({x: 0.35, y: 0, z: 0})
             }
         }
@@ -1151,7 +1141,6 @@ class Diamond extends GF.GameObject {
     }
 
     onInit() {
-        super.onInit();
         this.light = new THREE.PointLight(0x55ffff, 1, 1);
         this.addToScene(this.light);
     }
@@ -1187,7 +1176,6 @@ class Torch extends GF.GameObject {
     }
 
     onInit() {
-        super.onInit();
         // light
         this.light = new THREE.PointLight(0xffaa55, 1, 4);
         this.light.castShadow = true; 
@@ -1203,14 +1191,14 @@ class Torch extends GF.GameObject {
             opacity: 1,
             particleCount: 50,
             size: 300,
-            velocity: new THREE.Vector3(0,0.0004,0),
-            lifetime: 500,
-            spawnDelay: 50,
+            velocity: new THREE.Vector3(0,0.4,0),
+            lifetime: 0.5,
+            spawnDelay: 0.1,
             spawnBox: new THREE.Vector3(0.1, 0, 0.1),
             isParticlePositionLocal: true,
             hasSizeAttenuation: true
         });
-        this.game.addObject(null, this.fireParticles);
+        this.game.addObject(this.fireParticles);
         this.fireParticles.position.set(this.position.x + 0, this.position.y + 0.2, this.position.z + 0);
     }
 

@@ -1,16 +1,43 @@
+
+// Constants
+const GRAVITY_ACCELERATION = -0.98;
+const MAX_SPEED_HISTORY = 3;
+
 /**
  * GameObject (Base Class for every object in the game)
  * Can be extended
  */
-GF.GameObject = class GameObject extends GF.StateMachine {
+GF.GameObject = class GameObject extends GF.EmptyObject {
 
     /**
      * Constructor
      * @param {THREE.Object3D | BuildObjectParams} object3DParams the actual THREE.Object3D or the params to build one (@see GF.Utils.build3DObject)
-     * @param {boolean} affectsRayCollision if this objects affects ray collision
-     * @param {boolean} affectsRayCollision if this object will not be updated every frame (static objects)
+     * * #### BuildObjectParams ####
+     * * `model: THREE.Geometry | BuildGeometryParams` - The params to build the geometry of the object (@see GF.Utils.buildGeometry)
+     * * `material: THREE.Material | BuildMaterialParams` - The params to build the material of the object (@see GF.Utils.buildMaterial)
+     * * `shadows: {cast: boolean, receive: boolean}` - If the object will cast/receive shadows
+     * * `position: Vector3` - Position for the object
+     * * `rotation: Vector3` - Rotation for the object
+     * * `scale: Vector3` - Scale for the object
+     * @param {PhysicsParams} physicsParams the physics params (optional)
+     * * #### PhysicsParams ####
+     * * `GF.CollisionVolume: collisionVolume` - collision volume
+     * * `dynamic: boolean` - If object is dynamic (if it will move and react to forces or be stationary)
+     * * `gravity: boolean` - If object is affected by gravity (dynamic=true only)
+     * * `solid: boolean` - If object will collide with solid objects
+     * * `mass: number` - The object mass
+     * * `restitution: number` - The object collision restitution coefficient (0 - 1)
+     * * `collisionFriction: number` - The object collision friction coefficient
+     * * `maxSpeed: {horizontal: number, vertical: number}` - Max speed horizontal (x & z) or vertical (y)
+     * * `useRayCollision: boolean` - If object will use ray collision to collide with terrain objects (y ray collision only)
+     * * `rayCollisionHeight: number` - Ray collision height
+     * * `rayCollisionMinStepHeight: number` - Ray collision min step for the object to be able to climb
+     * * `collisionGroups: string[]` - The collision groups
+     * * `rotationMatchesDirection: boolean` - If the Object3D rotation will match the direction of movement
+     * * `affectsRayCollision: boolean` - If this Object3D  affects ray collision
+     * @param {boolean} noUpdate if this object will not be updated every frame (optional)
      */
-    constructor(object3DParams, affectsRayCollision = false, noUpdate = false) {
+    constructor(object3DParams, physicsParams, noUpdate = false) {
         super();
 
         this.alive = false;
@@ -19,8 +46,7 @@ GF.GameObject = class GameObject extends GF.StateMachine {
         this.rotation = new THREE.Vector3(0,0,0);
         this.scale = new THREE.Vector3(0,0,0);
 
-        this._affectsRayCollision = affectsRayCollision;
-        this._noUpdate = noUpdate;
+        this._static = noUpdate;
 
         this._keySubscriptions = [];
         this._mouseSubscriptions = [];
@@ -28,204 +54,357 @@ GF.GameObject = class GameObject extends GF.StateMachine {
 
         this.intersectedByMouse = false;
         this._object3DParams = object3DParams;
+
+        // physics
+        if (physicsParams != null) {
+            this.hasPhysics = true;
+            this.speed = new THREE.Vector3(0,0,0);
+            this.movementDirection = new THREE.Vector3(0,0,0);
+
+            this.dynamic = physicsParams.dynamic;
+            this.affectedByGravity = physicsParams.gravity != null ? physicsParams.gravity : true;
+            this.mass = physicsParams.mass != null ? physicsParams.mass : 1;
+            this.restitution = physicsParams.restitution != null ? physicsParams.restitution : 0;
+            this.kineticCollisionFriction = physicsParams.collisionFriction;
+            this.maxHorizontalSpeed = physicsParams.maxSpeed != null ? physicsParams.maxSpeed.horizontal : null;
+            this.maxVerticalSpeed = physicsParams.maxSpeed != null ? physicsParams.maxSpeed.vertical : null;
+            this.rotationMatchesDirection = physicsParams.rotationMatchesDirection != null ? physicsParams.rotationMatchesDirection : false;
+            this.useRayCollision = physicsParams.useRayCollision;
+            this.rayCollisionHeight = physicsParams.rayCollisionHeight != null ? physicsParams.rayCollisionHeight : 1;
+            this.rayCollisionMinStepHeight = physicsParams.rayCollisionMinStepHeight != null ? physicsParams.rayCollisionMinStepHeight : 0.1;
+
+            // internal properties
+            this._collisionVolume = physicsParams.collisionVolume;
+            this._affectedCollisionGroups = physicsParams.collisionGroups != null ? physicsParams.collisionGroups : [];
+            if (physicsParams.solid) {
+                this._affectedCollisionGroups.splice(0, 0, "solid");
+            }
+            this._affectsRayCollision = physicsParams.affectsRayCollision;
+
+            this._resultForce = new THREE.Vector3(0,0,0);
+
+            this._acceleration = new THREE.Vector3(0,0,0);
+            this._frictionVector = new THREE.Vector3(0,0,0);
+
+            this._speedHistory = {
+                "x": [],
+                "y": [],
+                "z": []
+            };
+
+            this._positionHistory = {
+                "x": [],
+                "y": [],
+                "z": []
+            };
+        }
     }
 
-    //#region internal
+        //#region Physics
 
     /**
-     * Init this object
+     * Update physics on collision
+     * @param {Vector3} normal 
+     * @param {Vector3} collisionPoint 
      */
-    _init(scene, camera, game) {
-        if (this.alive === false) {
-            this.scene = scene;
-            this.camera = camera;
-            this.events = game.eventManager;
-            this.animation = game.animationManager;
-            this.input = game.inputManager;
-            this.collision = game.collisionManager;
-            this.loader = game.loader;
-            this.game = game;
-            this.alive = true;
-            this._tickDeltaCount = 0;
+     _updatePhysicsOnCollision(normal, point) {
+        if (normal != null) {
+            if (normal.x != 0) {
+                this.speed.x = 0;
+                this.object3D.position.x = point.x;
+            }
+            if (normal.y != 0) {
+                this.speed.y = 0;
+                this.object3D.position.y = point.y;
+            }
+            if (normal.z != 0) {
+                this.speed.z = 0;
+                this.object3D.position.z = point.z;
+            }
+        }
+    }
 
-            if (this._object3DParams) {
-                this.object3D = GF.Utils.build3DObject(this.loader, this._object3DParams);
+    /**
+     * Add speed history on axis
+     * @param {string} axis 
+     */
+    _addSpeedHistoryOnAxis(axis) {
+        this._speedHistory[axis].push(this.speed[axis]);
 
-                // setup animated model
-                if (this._object3DParams.skeletalAnimations != null && this.object3D != null) {
-                    const skinnedMesh = this.object3D.type === "SkinnedMesh" ? this.object3D : this.object3D.children.find(c => c.type === "SkinnedMesh");
-                    if (skinnedMesh != null) {
-                        this.skinnedMesh = skinnedMesh;
-                        this.setupAnimated3DModelFromMesh(this.object3D);
+        if (this._speedHistory[axis].length > MAX_SPEED_HISTORY) {
+            this._speedHistory[axis].splice(0, 1);
+        }
+    }
+
+    /**
+     * Add position history on axis
+     * @param {string} axis 
+     */
+    _addPositionHistoryOnAxis(axis) {
+        this._positionHistory[axis].push(this.object3D.position[axis]);
+
+        if (this._positionHistory[axis].length > MAX_SPEED_HISTORY) {
+            this._positionHistory[axis].splice(0, 1);
+        }
+    }
+
+    /**
+     * Register speed history
+     */
+    _registerSpeedHistory() {
+        this._addSpeedHistoryOnAxis("x");
+        this._addSpeedHistoryOnAxis("y");
+        this._addSpeedHistoryOnAxis("z");
+    }
+
+    /**
+     * Register position history
+     */
+    _registerPositionHistory() {
+        this._addPositionHistoryOnAxis("x");
+        this._addPositionHistoryOnAxis("y");
+        this._addPositionHistoryOnAxis("z");
+    }
+
+    /**
+     * Internal update function
+     * @param {number} delta 
+     */
+    _internalUpdatePhysics(delta) {
+        // move object with speed
+        this.object3D.position.x += this.speed.x * delta;
+        this.object3D.position.y += this.speed.y * delta;
+        this.object3D.position.z += this.speed.z * delta;
+
+        if (this.rotationMatchesDirection) {
+            this.syncRotationWithDirection(delta);
+        }
+
+        // check ray collision
+        if (this.useRayCollision) {
+            this.floorCollision = this.game.physics.checkRayCollision(this, new THREE.Vector3(0, -1, 0), this.rayCollisionHeight);
+            if (this.floorCollision != null) {
+                if (this.floorCollision.point.y > this.object3D.position.y) {
+                    if (this.speed.y < 0) {
+                        this.speed.y = 0;
+                    }
+                    this._isColliding = true;
+
+                    if (this.floorCollision.point.y - this.object3D.position.y < this.rayCollisionMinStepHeight) {
+                        this.object3D.position.y = this.floorCollision.point.y;
                     } else {
-                        this.setupAnimated3DModel(this.object3D.geometry, this.object3D.material);
-                        this.skinnedMesh = this.object3D;
-                    }
-
-                    this.armature = this.object3D.children.find(c => c.type === "Group" && c.name === "Armature");
-
-                    // animations properties
-                    for (const action of this._object3DParams.skeletalAnimations) {
-                        this.updateAnimationActionProperties(action.name, action.speed, action.clamp, action.loop ? null : {type: THREE.LoopOnce, repetitions: 0});
-                    }
-                }
-            }
-
-            if (this.object3D != null) {
-                this.setObject3D(this.object3D);
-            }
-
-            this.onInit();
-
-            if (this._onInitSubscriptions != null) {
-                for (let subscription of this._onInitSubscriptions) {
-                    if (typeof(subscription) === "function") {
-                        subscription();
+                        this.object3D.position.x = this.getLastPosition("x");
+                        this.object3D.position.y = this.getLastPosition("y");
+                        this.object3D.position.z = this.getLastPosition("z");
                     }
                 }
             }
         }
-    }
 
-    /**
-     * Update this object
-     */
-    _update(delta) {
-        if (this.alive === true) {
-            this.onUpdate(delta);
+        // register history
+        this._registerPositionHistory();
+        this._registerSpeedHistory();
+
+        // super update logic
+        this.onUpdate(delta);
+
+        // calculate movement direction
+        if (this.speed.x != 0 || this.speed.z != 0) {
+            this.movementDirection.copy(this.speed);
+            this.movementDirection.normalize();
         }
-    }
 
-    /**
-     * Destroy this object
-     */
-    _destroy() {
-        if (this.alive === true) {
-            if (this.object3D) {
-                this.scene.remove(this.object3D);
+        // apply kinetic friction
+        if (this.speed.length() > 0 && this._isColliding && this.kineticCollisionFriction > 0) {
+            // Ff = u * Fn ; Fn = m * g;
+            this._frictionVector.copy(this.speed);
+            this._frictionVector.normalize();
+            this._frictionVector.multiplyScalar(GRAVITY_ACCELERATION * this.game._speed * this.kineticCollisionFriction);
+
+            // subtract friction
+            this.speed.add(this._frictionVector);
+
+            if (this._frictionVector.dot(this.speed) > 0) {
+                this.speed.set(0,0,0);
             }
-            this.alive = false;
-
-            // unsubscribe input
-            this.offKeySubscriptions();
-            this.offMouseSubscriptions();
-
-            this.onDestroy();
-
-            if (this.sceneAddedObjects) {
-                for (const object3D of this.sceneAddedObjects) {
-                    this.game.removeFromScene(object3D);
-                }
-            }
-
-            this.game.removeObject(this.getId(), false)
         }
-    }
 
-    /**
-     * Mouse intersect
-     * @param {boolean} intersect 
-     */
-    _mouseIntersect(intersect) {
-        this.intersectedByMouse = intersect;
-        this.onIntersectedByMouse();
+        // calculate acceleration based on forces applied
+        this._resultForce.divideScalar(this.mass);
+        this._acceleration.set(0, this.affectedByGravity ? GRAVITY_ACCELERATION * this.game._speed : 0, 0); // set base gravity acceleration
+        this._acceleration.add(this._resultForce);
+
+        // acceleration
+        this.speed.add(this._acceleration);
+
+        // clamp horizontal speed
+        if (this.maxHorizontalSpeed != null && this.maxHorizontalSpeed >= 0) {
+            this.speedY = this.speed.y;
+            this.speed.y = 0;
+            this.speed.clampLength(0, this.maxHorizontalSpeed);
+            this.speed.y = this.speedY;
+        }
+
+        // clamp vertical speed
+        if (this.maxVerticalSpeed != null && this.maxVerticalSpeed >= 0) {
+            this.speed.y = Math.min(this.speed.y, this.maxVerticalSpeed);
+        }
+
+        this._resultForce.set(0, 0, 0);
+
+        this._isColliding = false;
+        this._collisionNormal = new THREE.Vector3(0,0,0);
     }
 
     //#endregion
 
-    //#region API
+    //#region Physics API
 
     /**
-     * Subscribe onInit
-     * @param {function} callback 
+     * Set physics collision enabled
+     * @param {boolean} enabled 
      */
-    subscribeOnInit(callback) {
-        this._onInitSubscriptions.push(callback);
+    setCollisionEnabled(enabled) {
+        this.game.physics.setVolumeEnabled(this._collisionVolumeReference, enabled)
     }
 
     /**
-     * Clear 'init' subscriptions
+     * Rotate towards angle
+     * @param {number} delta time interval passed
+     * @param {number} angle the target angle in radians
      */
-    clearOnInitSubscriptions() {
-        this._onInitSubscriptions = [];
+    rotateTowardsAngle(delta, angle) {
+        var quaternion = new THREE.Quaternion();
+        quaternion.setFromAxisAngle( new THREE.Vector3( 0, 1, 0 ), angle );
+        this.object3D.quaternion.slerp( quaternion, delta * 10 );
     }
 
     /**
-     * Unsubscribe input
+     * Rotate to angle
+     * @param {number} angle the target angle in radians
      */
-    offKeySubscriptions() {
-        for (const subscription of this._keySubscriptions) {
-            this.input.unbind(subscription);
+    rotateToAngle(angle) {
+        this.object3D.quaternion.setFromAxisAngle( new THREE.Vector3( 0, 1, 0 ), angle );
+    }
+
+    /**
+     * Sync rotation with direction
+     */
+    syncRotationWithDirection(delta) {
+        this.rotateTowardsAngle(delta, this.getDirectionAngle());
+    }
+
+    /**
+     * Check if object is stationary on axis
+     * @param {string} axis the axis name ("x", "y" or "z")
+     */
+    isStationary(axis) {
+        for (var i = 0; i < this._speedHistory[axis].length; i++) {
+            if (this._speedHistory[axis][i] != 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Get speed tendency on axis (positive or negative)
+     * @param {string} axis the axis name ("x", "y" or "z")
+     */
+    getSpeedTendency(axis) {
+        var tendency = 0;
+        for (var i = 0; i < this._speedHistory[axis].length; i++) {
+            tendency += this._speedHistory[axis][i];
+        }
+        return Math.abs(tendency / this._speedHistory[axis].length);
+    }
+
+    /**
+     * Get last speed on axis
+     * @param {string} axis the axis name ("x", "y" or "z")
+     */
+    getLastSpeed(axis) {
+        return this._speedHistory[axis][this._speedHistory[axis].length - 1];
+    }
+
+    /**
+     * Get last position on axis
+     * @param {string} axis the axis name ("x", "y" or "z")
+     */
+    getLastPosition(axis) {
+        return this._positionHistory[axis][this._positionHistory[axis].length - 1];
+    }
+
+    /**
+     * Get position history on axis
+     * @param {string} axis the axis name ("x", "y" or "z")
+     */
+    getPositionHistory(axis) {
+        return this._positionHistory[axis];
+    }
+
+    /**
+     * Get direction angle
+     */
+    getDirectionAngle() {
+        const angle = Math.atan2(-this.movementDirection.z, this.movementDirection.x);
+        return angle < 0 ? (Math.PI * 2) + angle : angle;
+    }
+
+    /**
+     * Apply force
+     * @param {THREE.vector3} force the force to apply
+     */
+    applyForce(force) {
+        this._resultForce.x += force.x;
+        this._resultForce.y += force.y;
+        this._resultForce.z += force.z;
+    }
+
+    //#endregion
+
+    //#region Generic API
+
+    /**
+     * Add a child THREE.Object3D or a GameObject
+     * @param {THREE.Object3D | GF.GameObject} object the object
+     * @param {boolean} affectsRayCollision if the object affects ray collision (only for THREE.Object3D type)
+     */
+    addChild(object, affectsRayCollision) {
+        if (this.object3D && object != null) {
+            if (object.object3D) {
+                this.game.addObject(object);
+                this.object3D.add(object.object3D);
+            } else {
+                this.addToScene(object, affectsRayCollision, this.object3D);
+            }
+
+            if (this.children == null) {
+                this.children = [];
+            }
+
+            if (this.children.indexOf(object) < 0) {
+                this.children.push(object);
+            }
         }
     }
 
     /**
-     * Unsubscribe mouse input
+     * Remove a child THREE.Object3D or a GameObject
+     * @param {THREE.Object3D | GF.GameObject} object 
      */
-    offMouseSubscriptions() {
-        for (const subscription of this._mouseSubscriptions) {
-            this.input.unbindMouseEvent(subscription);
-        }
-    }
+    removeChild(object) {
+        if (this.object3D && object != null) {
+            const index = this.children.indexOf(object);
+            if (index >= 0) {
+                const child = this.children.splice(index, 1);
 
-    /**
-     * Bind to a key press/released/pressing action
-     * @param {string} key the key
-     * @param {KeyPressState} type if key press is PRESSED, PRESSING or RELEASED
-     * @param {function} callback the callback
-     */
-    onKey(key, type, callback) {
-        if (this._keySubscriptions == null) {
-            this._keySubscriptions = [];
-        }
-        this._keySubscriptions.push(this.input.bind(key, type, callback.bind(this)));
-    }
-
-    /**
-     * Bind to a gamepad button press/released/pressing action
-     * @param {string} button the button
-     * @param {KeyPressState} type if button press is PRESSED, PRESSING or RELEASED
-     * @param {function} callback the callback
-     */
-    onGamePadButton(button, type, callback) {
-        if (this._keySubscriptions == null) {
-            this._keySubscriptions = [];
-        }
-        this._keySubscriptions.push(this.input.bindGamePad(button, type, callback.bind(this)));
-    }
-
-    /**
-     * Bind to a mouse click/down/up/move action
-     * @param {string} event the mouse event
-     * @param {function} callback the callback
-     */
-    onMouse(event, callback) {
-        if (this._mouseSubscriptions == null) {
-            this._mouseSubscriptions = [];
-        }
-        this._mouseSubscriptions.push(this.input.bindMouseEvent(event, callback.bind(this)));
-    }
-
-    /**
-     * Set Object3D
-     * @param {Object3D} object3D 
-     */
-    setObject3D(object3D) {
-        if (this.object3D != null) {
-            this.game.removeFromScene(this.object3D);
-        }
-        this.object3D = object3D;
-        if (this.object3D) {
-            this.game.addToScene(this.object3D, this._affectsRayCollision);
-            this.position = this.object3D.position;
-            this.rotation = this.object3D.rotation;
-            this.scale = this.object3D.scale;
-            this.material = this.object3D.material;
-        } else {
-            this.position = new THREE.Vector3(0,0,0);
-            this.rotation = new THREE.Vector3(0,0,0);
-            this.scale = new THREE.Vector3(0,0,0);
-            this.material = null;
+                if (child.object3D) {
+                    this.object3D.remove(child.object3D);
+                } else {
+                    this.object3D.remove(child);
+                }
+            }
         }
     }
 
@@ -356,109 +535,158 @@ GF.GameObject = class GameObject extends GF.StateMachine {
         })
     }
 
-    /**
-     * Get own id
-     */
-    getId() {
-        return this._id;
-    }
+    //#endregion
+
+    //#region LifeCycle
 
     /**
-     * Get type name of this object with Inheritance types
+     * Init this object
      */
-    getTypeName() {
-        return this.constructor.name + (super.getType != null ? "." + super.getType() : "");
-    }
+    _init(game) {
+        if (!this.alive) {
+            this.game = game;
+            this.alive = true;
+            this._tickDeltaCount = 0;
 
-    /**
-     * Sets this object visibility
-     * @param {boolean} visible 
-     */
-    setVisible(visible) {
-        this.object3D.__old_visible = visible;
-        return this.object3D.visible = visible;
-    }
+            if (this._object3DParams) {
+                this.object3D = GF.Utils.build3DObject(this.game.loader, this._object3DParams);
 
-    /**
-     * Returns this object's radius
-     */
-    getRadius() {
-        if (this.object3D && this.object3D.geometry) {
-            if (this.object3D.geometry.boundingBox == null) {
-                this.object3D.geometry.computeBoundingBox();
+                // setup animated model
+                if (this._object3DParams.skeletalAnimations != null && this.object3D != null) {
+                    const skinnedMesh = this.object3D.type === "SkinnedMesh" ? this.object3D : this.object3D.children.find(c => c.type === "SkinnedMesh");
+                    if (skinnedMesh != null) {
+                        this.skinnedMesh = skinnedMesh;
+                        this.setupAnimated3DModelFromMesh(this.object3D);
+                    } else {
+                        this.setupAnimated3DModel(this.object3D.geometry, this.object3D.material);
+                        this.skinnedMesh = this.object3D;
+                    }
+
+                    this.armature = this.object3D.children.find(c => c.type === "Group" && c.name === "Armature");
+
+                    // animations properties
+                    for (const action of this._object3DParams.skeletalAnimations) {
+                        this.updateAnimationActionProperties(action.name, action.speed, action.clamp, action.loop ? null : {type: THREE.LoopOnce, repetitions: 0});
+                    }
+                }
             }
-            return Math.max(Math.abs(this.object3D.geometry.boundingBox.max.x - this.object3D.geometry.boundingBox.min.x),
-            Math.abs(this.object3D.geometry.boundingBox.max.z - this.object3D.geometry.boundingBox.min.z));
-        } else {
-            return 0;
-        }
-    }
 
-     /**
-     * Returns this object's height
-     */
-    getHeight() {
-        if (this.object3D && this.object3D.geometry) {
-            if (this.object3D.geometry.boundingBox == null) {
-                this.object3D.geometry.computeBoundingBox();
+            if (this.object3D != null) {
+                this.setObject3D(this.object3D);
             }
-            return Math.abs(this.object3D.geometry.boundingBox.max.y - this.object3D.geometry.boundingBox.min.y);
-        } else {
-            return 0;
+
+            // init physics
+            if (this.hasPhysics) {
+                this.speed = new THREE.Vector3(0,0,0);
+                this._acceleration = new THREE.Vector3(0,0,0);
+                this._frictionVector = new THREE.Vector3(0,0,0);
+    
+                this.onInit();
+    
+                if (this.object3D) {
+                    for (var i = 0; i < MAX_SPEED_HISTORY; i++) {
+                        this._registerSpeedHistory();
+                        this._registerPositionHistory();
+                    }
+    
+                    if (this._collisionVolume == null) {
+                        this._collisionVolume = GF.Utils.buildCollisionVolumeFrom3DObject(this.object3D);
+                    }
+                    
+                    if (this._collisionVolume != null) {
+                        this._collisionVolumeReference = this.game.physics.addVolume(this, this._collisionVolume, this.object3D.position, true, this._affectedCollisionGroups).id;
+                    }
+    
+                    this.lag = 0;
+    
+                    this._isColliding = false;
+                    this._collisionNormal = new THREE.Vector3(0,0,0);
+                }
+            } else {
+                this.onInit();
+            }
+
+            this._initSubRoutine();
         }
     }
 
     /**
-     * Get Material
+     * Update this object
      */
-    getMaterial() {
-        return this.object3D != null ? this.object3D.material : null;
-    }
+    _update(delta) {
+        if (this.alive === true) {
+            this._updateStateMachine(delta);
 
-    /**
-     * Add a ThreeJs object to the scene (it will be removed from scene when this object is destroyed)
-     * @param {THREE.Object} object3D the object
-     * @param {boolean} affectsRayCollision if the object affects ray collision (if affects PhysicsObject's that use ray collision)
-     */
-    addToScene(object3D, affectsRayCollision) {
-        this.game.addToScene(object3D, affectsRayCollision);
-        if (this.sceneAddedObjects == null) {
-            this.sceneAddedObjects = [];
+            // update animation mixer
+            if (this._animationMixer) {
+                this._animationMixer.update(delta);
+
+                if (!this._animationActions[this.animationActiveAction].isRunning() && this.currentAnimationFinishCallback) {
+                    this.currentAnimationFinishCallback();
+                }
+            }
+
+            // update logic
+            if (this.hasPhysics && this.object3D) {
+                if (delta <= MS_PER_UPDATE) {
+                    this._internalUpdatePhysics(delta);
+                } else {
+                    this.lag += delta;
+                    // update physics with a fixed time stamp
+                    while (this.lag >= MS_PER_UPDATE) {  
+                        this._internalUpdatePhysics(MS_PER_UPDATE);
+                        // reduce the lag counter by the frame duration
+                        this.lag -= MS_PER_UPDATE;
+                    }
+                }
+            } else {
+                this.onUpdate(delta);
+            }
         }
-        this.sceneAddedObjects.push(object3D);
-    }
-
-    /**
-     * Create new sound player
-     * @param {string} asset audio buffer asset
-     * @param {any} params params
-     * {
-     *  positional: boolean (if the sound is positional or global)
-     *  loop: boolean,
-     *  volume: number (0 - 1)
-     *  distance: number (in case of positional=false)
-     * }
-     */
-    newSoundPlayer(asset, params) {
-        return GF.Utils.newSound(this.game._audioListener, this.loader.get(asset), params);
     }
 
     /**
      * Destroy this object
      */
-    destroy() {
-        this._destroy();
+    _destroy() {
+        if (this.alive === true) {
+            if (this.object3D) {
+                this.game.scene.remove(this.object3D);
+            }
+            this.alive = false;
+
+            this.onDestroy();
+
+            // destroy children
+            if (this.children) {
+                for (const child of this.children) {
+                    if (child.destroy) {
+                        child.destroy();
+                    }
+                }
+            }
+
+            if (this._collisionVolumeReference) {
+                this.game.physics.removeVolume(this._collisionVolumeReference);
+            }
+
+            this._destroySubRoutine();
+        }
     }
 
-    //#endregion
-
-    //#region lifecycle
+    /**
+     * Mouse intersect
+     * @param {boolean} intersect 
+     */
+    _mouseIntersect(intersect) {
+        this.intersectedByMouse = intersect;
+        this.onIntersectedByMouse();
+    }
 
     /**
      * On object init
      */
     onInit(){
-        this.setObject3D(this.object3D);
     }
 
     /**
@@ -466,27 +694,36 @@ GF.GameObject = class GameObject extends GF.StateMachine {
      * @param {number} delta the delta time between frames
      */
     onUpdate(delta){
-        super.onUpdate(delta);
-
-        // update animation mixer
-        if (this._animationMixer) {
-            this._animationMixer.update(delta);
-
-            if (!this._animationActions[this.animationActiveAction].isRunning() && this.currentAnimationFinishCallback) {
-                this.currentAnimationFinishCallback();
-            }
-        }
     }
 
     /**
      * On destroy
      */
-    onDestroy(){}
+    onDestroy(){
+    }
+
+    /**
+     * On collision enter
+     * @param {Collision} other the collision data
+     * @param {Vector3} normal the collision normal
+     */
+    onCollisionEnter(other, normal) {
+
+    }
+
+    /**
+     * On collision exit
+     * @param {Collision} other the collision data
+     */
+    onCollisionExit(other) {
+
+    }
 
     /**
      * On intersect by mouse
      */
-    onIntersectedByMouse(){}
+    onIntersectedByMouse(){
+    }
 
     //#endregion
 }

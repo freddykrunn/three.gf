@@ -180,10 +180,10 @@ GF.Game = class Game extends GF.StateMachine {
 
         // managers
         this.loader = loader;
-        this.eventManager = new GF.GameEventManager();
-        this.inputManager = new GF.GameInputManager(this);
-        this.collisionManager = new GF.CollisionManager(this);
-        this.animationManager = new GF.GameAnimationManager(this.eventManager, this.camera);
+        this.events = new GF.GameEventManager();
+        this.input = new GF.GameInputManager(this);
+        this.physics = new GF.PhysicsManager(this);
+        this.animation = new GF.GameAnimationManager(this.events, this.camera);
 
         // pointer lock 
         this.pointerLockEnabled = this._usePointerLock;
@@ -202,7 +202,7 @@ GF.Game = class Game extends GF.StateMachine {
      * On update
      */
     onUpdate(delta){
-        super.onUpdate(delta);
+        super._updateStateMachine(delta);
     }
 
     /**
@@ -344,13 +344,13 @@ GF.Game = class Game extends GF.StateMachine {
             
             this._debug = true;
 
-            this.collisionManager._activateDebugMode(this._debugParams.showCollisionBoxes);
+            this.physics._activateDebugMode(this._debugParams.showCollisionBoxes);
         } else {
             this._debugCanvas.style.display = "none";
             this._debugCanvasContext = null;
             this._debugParams = null;
             this._debug = false;
-            this.collisionManager._activateDebugMode(false);
+            this.physics._activateDebugMode(false);
         }
     }
 
@@ -393,11 +393,11 @@ GF.Game = class Game extends GF.StateMachine {
     //#endregion
 
     /**
-     * Fire game event
-     * @param {string} name event name
+     * Publish game event message broadcasting to all listeners
+     * @param {string} name message name
      * @param {any} args arguments
      */
-    fireEvent(name, args) {
+    publish(name, args) {
         if (this._gameEvents[name] != null && this._gameEvents[name].subscriptions != null) {
             for (const subscription in this._gameEvents[name].subscriptions) {
                 this._gameEvents[name].subscriptions[subscription](args);
@@ -406,28 +406,28 @@ GF.Game = class Game extends GF.StateMachine {
     }
 
     /**
-     * Listen to game event
-     * @param {string} name event name
+     * Listen to a game event message that was broadcast
+     * @param {string} name message name
      * @param {function} callback callback
      * @return subscription
      */
-    onEvent(name, callback) {
+    listen(name, callback) {
         if (this._gameEvents[name] == null) {
             this._gameEvents[name] = {
                 subscriptions: {}
             };
         }
 
-        const newSubscription = GF.Utils.uniqueId("GameEventSubscription_");
+        const newSubscription = GF.Utils.uniqueId("GameMessageSubscription_");
         this._gameEvents[name].subscriptions[newSubscription] = callback;
     }
 
     /**
-     * Stop listening to game event 
-     * @param {string} name event name
+     * Stop listening to game event message
+     * @param {string} name message name
      * @param {string} subscription the subscription
      */
-    offEvent(name, subscription) {
+    stopListening(name, subscription) {
         if (this._gameEvents[name] != null && this._gameEvents[name].subscriptions != null) {
             delete this._gameEvents[name].subscriptions[subscription];
         }
@@ -440,7 +440,7 @@ GF.Game = class Game extends GF.StateMachine {
      */
     setVariable(name, value) {
         this._variables[name] = value;
-        this.variableChanged(name);
+        this.emitVariableChanged(name);
     }
 
     /**
@@ -472,10 +472,10 @@ GF.Game = class Game extends GF.StateMachine {
     }
 
     /**
-     * Fire variable change event
+     * Emit variable change event
      * @param {string} name event name
      */
-    variableChanged(name) {
+    emitVariableChanged(name) {
         if (this._variablesChangeEvents[name] != null && this._variablesChangeEvents[name].subscriptions != null) {
             for (const subscription in this._variablesChangeEvents[name].subscriptions) {
                 this._variablesChangeEvents[name].subscriptions[subscription](this._variables[name]);
@@ -582,7 +582,7 @@ GF.Game = class Game extends GF.StateMachine {
             object = param1;
         }
 
-        object._init(this.scene, this.camera, this);
+        object._init(this);
         if (id == null) {
             id = GF.Utils.uniqueId("GameObject_");
         }
@@ -594,7 +594,7 @@ GF.Game = class Game extends GF.StateMachine {
         }
         this._objectsArray.push(object);
 
-        if (!object._noUpdate) {
+        if (!object._static) {
             if (this._objectsToUpdateArray == null) {
                 this._objectsToUpdateArray = [];
             }
@@ -605,18 +605,23 @@ GF.Game = class Game extends GF.StateMachine {
     }
 
     /**
-     * Add new object to scene
-     * @param {any} object
-     * @param 
+     * Add new Object3D to scene
+     * @param {THREE.Object3D} object the object to add
+     * @param {boolean} affectRayCollision if the object will affect ray collision (optional)
+     * @param {THREE.Object3D} parent the parent object to append to (optional)
      */
-    addToScene(object, affectRayCollision) {
+    addToScene(object, affectRayCollision, parent) {
         if (affectRayCollision) {
             if (this._rayCollisionObjects == null) {
                 this._rayCollisionObjects = [];
             }
             this._rayCollisionObjects.push(object);
         }
-        this.scene.add(object);
+        if (parent != null) {
+            parent.add(object);
+        } else {
+            this.scene.add(object);
+        }
     }
 
     /**
@@ -652,7 +657,7 @@ GF.Game = class Game extends GF.StateMachine {
                 }
             }
     
-            if (!object._noUpdate) {
+            if (!object.__static) {
                 if (this._objectsToUpdateArray != null) {
                     var i = this._objectsToUpdateArray.findIndex(o => o === object);
                     if (i >= 0) {
@@ -688,6 +693,56 @@ GF.Game = class Game extends GF.StateMachine {
      */
     getObjects() {
         return this._objectsArray;
+    }
+
+    /**
+     * Add a light to the scene
+     * @param {LightParams} params 
+     * #### LightParams ####
+     * * `type: string` - the light type ("point" or "spot")
+     * * `color: number` - the color of the light
+     * * `intensity: number` - the intensity of the light
+     * * `distance: number` - the distance of the light
+     * * `position: Vector3` - the position of the light
+     * * `angle: number` - the angle of the "spot" light  (optional)
+     * * `penumbra: number` - the penumbra of the "spot" light (optional)
+     * * `decay: number` - the decay of the "spot" light  (optional)
+     * * `direction: Vector3` - the direction of the "spot" light
+     * * `target: Object3D` - the target of the "spot" light (optional)
+     * @returns 
+     */
+    addLight(params) {
+        let light = null;
+        if (params != null) {
+            if (params.type === "point") {
+                light = new THREE.PointLight(params.color, params.intensity, params.distance);
+                light.position.set(
+                    params.position.x,
+                    params.position.y,
+                    params.position.z
+                );
+            } else if (params.type === "spot") {
+                light = new THREE.SpotLight(params.color, params.intensity, params.distance, params.angle, params.penumbra, params.decay);
+                light.position.set(
+                    params.position.x,
+                    params.position.y,
+                    params.position.z
+                );
+
+                if (params.direction) {
+                    light.target.set(
+                        params.position.x + params.direction.x,
+                        params.position.y + params.direction.y,
+                        params.position.z + params.direction.z
+                    );
+                    this.scene.add(light.target);
+                } else if (params.target) {
+                    light.target = params.target;
+                }
+            }
+            this.scene.add(light);
+        }
+        return light;
     }
 
     /**
@@ -919,8 +974,8 @@ GF.Game = class Game extends GF.StateMachine {
         if (this._editMode) {
             this._editor.init();
         } else {
-            this.eventManager._init();
-            this.inputManager._init();
+            this.events._init();
+            this.input._init();
 
             this.onInit();
             if (this._initCallback) {
@@ -928,7 +983,7 @@ GF.Game = class Game extends GF.StateMachine {
             }
 
             for (var i = 0; i < this._objectsArray.length; i++) {
-                this._objectsArray[i]._init(this.scene, this.camera, this);
+                this._objectsArray[i]._init(this);
             }
 
             if (this._usePointerLock) {
@@ -974,7 +1029,7 @@ GF.Game = class Game extends GF.StateMachine {
                         this.currentMouseIntersection.object._mouseIntersect(false);
                     }
 
-                    this.currentMouseIntersection = this.collisionManager.intersectObjects(this._mouseCoords, this.camera);
+                    this.currentMouseIntersection = this.physics.intersectObjects(this._mouseCoords, this.camera);
 
                     if (this.currentMouseIntersection != null && this.currentMouseIntersection.object != null) {
                         this.currentMouseIntersection.object._mouseIntersect(true);
@@ -1016,9 +1071,9 @@ GF.Game = class Game extends GF.StateMachine {
      * @param {number} delta in ms
      */
     _update(delta) {
-        this.eventManager._update(delta);
-        this.inputManager._update(delta);
-        this.animationManager._update(delta);
+        this.events._update(delta);
+        this.input._update(delta);
+        this.animation._update(delta);
 
         var deltaInSeconds = delta * DELTA_TO_SECONDS
 
@@ -1031,7 +1086,7 @@ GF.Game = class Game extends GF.StateMachine {
             this._objectsToUpdateArray[i]._update(deltaInSeconds);
         }
 
-        this.collisionManager._update();
+        this.physics._update();
 
         // display debug info
         if (this._debug) {
@@ -1055,8 +1110,8 @@ GF.Game = class Game extends GF.StateMachine {
                 this._objectsArray[i]._destroy();
             }
 
-            this.eventManager._destroy();
-            this.inputManager._destroy();
+            this.events._destroy();
+            this.input._destroy();
 
             this.onDestroy();
             if (this._destroyCallback) {

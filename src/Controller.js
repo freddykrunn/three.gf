@@ -168,8 +168,6 @@ GF.GameController = class GameController {
             this.game = new GF.Game(this._gameCanvas, this._gameDebugCanvas, this.assets, gameParams.params, gameParams.onStart, gameParams.onUpdate, gameParams.onStop, gameParams.onTickUpdate, gameParams.onPointerLockChange);
         }
         this.game._mainContainer = this._container;
-        this.input = this.game.inputManager;
-        this.animation = this.game.animationManager;
 
         // aspect ratio
         this._aspectRatio = this.game._aspectRatio != null ? this.game._aspectRatio : GF.ASPECT_RATIO._16_9;

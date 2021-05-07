@@ -2,7 +2,7 @@
 /**
  * Scene
  */
-GF.Scene = class Scene {
+ GF.Scene = class Scene {
     /**
      * Create a template scene from an asset JSON file
      * @param {GF.Game} game the game instance pointer
@@ -67,7 +67,7 @@ GF.Scene = class Scene {
 
                 // Collision volume
                 if (children[i].name === "CollisionBox") {
-                    cv = this._game.collisionManager.addVolume(null,
+                    cv = this._game.physics.addVolume(null,
                         new GF.CollisionVolumeBox(scale.x, scale.y, scale.z, new THREE.Vector3(0,0,0)),
                         position
                     );
@@ -199,7 +199,7 @@ GF.Scene = class Scene {
 
                     // add collision volume
                     if (object.collision) {
-                        const cv = this._game.collisionManager.addVolume(null, GF.Utils.buildCollisionVolumeFrom3DObject(newObject), newObject.position);
+                        const cv = this._game.physics.addVolume(null, GF.Utils.buildCollisionVolumeFrom3DObject(newObject), newObject.position);
                         this.collisionVolumes.push(cv);
                     }
 
@@ -241,7 +241,7 @@ GF.Scene = class Scene {
         }
 
         for (var i = 0; i < this.collisionVolumes.length; i++) {
-            this._game.collisionManager.removeVolume(this.collisionVolumes[i].id)
+            this._game.physics.removeVolume(this.collisionVolumes[i].id)
         }
     }
 }

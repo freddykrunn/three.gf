@@ -110,7 +110,7 @@ GF.StateMachine = class StateMachine {
      * On Update
      * @param {number} delta 
      */
-    onUpdate(delta) {
+    _updateStateMachine(delta) {
         this._lastDelta = delta;
 
         if (this._stateCallbacks != null && typeof(this._stateCallbacks[this.state]) === "function") {

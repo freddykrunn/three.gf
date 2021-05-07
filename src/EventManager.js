@@ -279,7 +279,7 @@ GF.GameEventStep = class GameEventStep {
         if (!this._fired) {
             if (this.elapsedDelay === this.delay) {
                 if (this.elapsedDuration < this.duration) {
-                    this.elapsedDuration+= delta;
+                    this.elapsedDuration += delta;
                     if (this.elapsedDuration >= this.duration) {
                         this.elapsedDuration = this.duration;
                     } else {
@@ -290,7 +290,7 @@ GF.GameEventStep = class GameEventStep {
                     this._fired = true;
                 }
             } else {
-                this.elapsedDelay+= delta;
+                this.elapsedDelay += delta;
                 if (this.elapsedDelay >= this.delay) {
                     this.elapsedDelay = this.delay;
                 }

@@ -1,9 +1,9 @@
 const MIN_COLLISION_FORCE_SPEED = 4;
 
 /**
- * CollisionManager
+ * PhysicsManager
  */
-GF.CollisionManager = class CollisionManager {
+GF.PhysicsManager = class PhysicsManager {
     constructor(game){
         this._game = game;
         this._collisionVolumes = {};
@@ -37,7 +37,7 @@ GF.CollisionManager = class CollisionManager {
             (volume1.shape.sizeHalf[2] + volume2.shape.sizeHalf[2]) - Math.abs(this._posDiff[2])
         ]
 
-        // TODO: use epsilon for floating point comparisons
+        // TODO: use epsilon
         if (this._diff[0] >= 0 && this._diff[1] >= 0 && this._diff[2] >= 0){
             if (this._diff[0] <= this._diff[1] && this._diff[0] <= this._diff[2]){
                 this._sign = Math.sign(this._posDiff[0]);
@@ -140,7 +140,7 @@ GF.CollisionManager = class CollisionManager {
      * Update
      */
     _update() {
-        var c, relativeVelocity, collisionSpeedMagnitude, impulse, intersection, mass01, mass02, restitution;
+        var c, oldTouchState, relativeVelocity, collisionSpeedMagnitude, impulse, intersection, mass01, mass02, restitution;
 
         // calculate intersection
         c = this._contacts[0];
@@ -152,12 +152,23 @@ GF.CollisionManager = class CollisionManager {
 
             // there was a collision
             if (intersection != null) {
-                c.touching = true;
                 c.normal01 = intersection[0];
                 c.normal02 = intersection[1];
 
+                if (!c.touching) {
+                    if (c.volume1.gameObject != null) {
+                        c.volume1.gameObject.onCollisionEnter(c.volume2, c.normal01);
+                    }
+
+                    if (c.volume2.gameObject != null) {
+                        c.volume2.gameObject.onCollisionEnter(c.volume1, c.normal02);
+                    }
+                }
+
+                c.touching = true;
+
                 // if any of the objects are Physics Objects and both collision volumes are solid, calculate collision speed
-                if (c.volume1.solid && c.volume2.solid && ((c.volume1.gameObject != null && c.volume1.gameObject.speed != null) || (c.volume2.gameObject != null && c.volume2.gameObject.speed != null))) {
+                if (c.volume1.enabled && c.volume2.enabled && c.volume1.solid && c.volume2.solid && ((c.volume1.gameObject != null && c.volume1.gameObject.speed != null) || (c.volume2.gameObject != null && c.volume2.gameObject.speed != null))) {
                     relativeVelocity = [
                         (c.volume1.gameObject != null ? c.volume1.gameObject.speed.x : 0) - (c.volume2.gameObject != null ? c.volume2.gameObject.speed.x : 0),
                         (c.volume1.gameObject != null ? c.volume1.gameObject.speed.y : 0) - (c.volume2.gameObject != null ? c.volume2.gameObject.speed.y : 0),
@@ -214,6 +225,16 @@ GF.CollisionManager = class CollisionManager {
                     }
                 }
             } else {
+                if (c.touching) {
+                    if (c.volume1.gameObject != null) {
+                        c.volume1.gameObject.onCollisionExit(c.volume2);
+                    }
+
+                    if (c.volume2.gameObject != null) {
+                        c.volume2.gameObject.onCollisionExit(c.volume1);
+                    }
+                }
+
                 c.touching = false;
                 c.normal01 = null;
                 c.normal02 = null;
@@ -389,6 +410,7 @@ GF.CollisionManager = class CollisionManager {
             gameObject: gameObject,
             autoUpdate: autoUpdate,
             solid: affectedGroups != null ? affectedGroups.includes("solid") : true,
+            enabled: true,
             shape: volume,
             affectedGroups: this._convertAffectedCollisionGroupsToHex(affectedGroups),
             position: [
@@ -462,6 +484,15 @@ GF.CollisionManager = class CollisionManager {
         if (this._debug) {
             this._updateVolumeDebugBoxPosition(id)
         }
+    }
+
+    /**
+     * Set volume enabled
+     * @param {string} id volume id
+     * @param {boolean} enabled 
+     */
+    setVolumeEnabled(id, enabled) {
+        this._collisionVolumes[id].enabled = enabled;
     }
 
     /**
@@ -588,7 +619,7 @@ GF.CollisionManager = class CollisionManager {
 
         if (intersections.length > 0) {
             var i = 0;
-            while(i < intersections.length && intersections[i].object != null && (intersections[i].object.gameObject == object || intersections[i].object.gameObject instanceof GF.PhysicsObject)) {
+            while(i < intersections.length && intersections[i].object != null && (intersections[i].object.gameObject == object || intersections[i].object.gameObject instanceof GF.GameObject)) {
                 i++;
             }
             intersections[i].distance = Math.round(intersections[i].distance * 100) / 100;
@@ -613,11 +644,18 @@ GF.CollisionVolume = class CollisionVolume {
     /**
      * CollisionVolume constructor
      * @param {GF.COLLISION_SPHERE | GF.COLLISION_CYLINDER | GF.COLLISION_BOX} type the volume shape
-     * @param {number[]} size the size array [x, y, z]
-     * @param {number[]} offset the offset origin array [x, y, z]
+     * @param {number[] | Vector3} size the size array [x, y, z]
+     * @param {number[] | Vector3} offset the offset origin array [x, y, z]
      */
     constructor(type, size, offset) {
         this.type = type;
+
+        if (size) {
+            size = size.x != null || size.y != null || size.z != null ? [size.x, size.y, size.z] : size;
+        }
+        if (offset) {
+            offset = offset.x != null || offset.y != null || offset.z != null ? [offset.x, offset.y, offset.z] : offset
+        }
 
         if (offset != null) {
             this.offset = offset;
