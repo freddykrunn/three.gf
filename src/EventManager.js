@@ -172,7 +172,7 @@ GF.GameEvent = class GameEvent {
     /**
      * Checks if event is alive
      */
-     isAlive() {
+    isAlive() {
         return this._alive;
     }
 
@@ -236,7 +236,7 @@ GF.GameEvent = class GameEvent {
                         this._fired = true;
 
                         if (this._destroyOnFinish) {
-                            this.destroy();
+                            this._destroy();
                         }
                     }
                 }

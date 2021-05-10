@@ -206,6 +206,7 @@ GF.GameObject = class GameObject extends GF.EmptyObject {
         this._registerSpeedHistory();
 
         // super update logic
+        this._updateSubRoutine(delta);
         this.onUpdate(delta);
 
         // calculate movement direction
@@ -640,6 +641,7 @@ GF.GameObject = class GameObject extends GF.EmptyObject {
                     }
                 }
             } else {
+                this._updateSubRoutine(delta);
                 this.onUpdate(delta);
             }
         }

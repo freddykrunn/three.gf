@@ -1,5 +1,28 @@
 /**
- * EmptyObject (Base Class for every object that has no visual representatiob in the game)
+ * GameObjectBehaviour to extend a GameObject (abstract class)
+ */
+GF.GameObjectBehaviour = class GameObjectBehaviour {
+    /**
+     * On start game object
+     */
+    start() {
+    }
+
+    /**
+     * On update game object
+     */
+    update(delta) {
+    }
+
+    /**
+     * On destroy game object
+     */
+    destroy() {
+    }
+}
+
+/**
+ * EmptyObject (Base Class for every object that has no visual representation in the game)
  * Can be extended
  */
 GF.EmptyObject = class EmptyObject extends GF.StateMachine {
@@ -9,6 +32,23 @@ GF.EmptyObject = class EmptyObject extends GF.StateMachine {
      */
     constructor() {
         super();
+        this._behaviours = [];
+    }
+
+    /**
+     * Add behaviour to this game object (call in constructor only)
+     * @param {GF.GameObjectBehaviour} behaviour 
+     */
+    addBehaviour(behaviour) {
+        const instance = new behaviour();
+        this._behaviours.push(instance);
+
+        const methods = Object.getOwnPropertyNames(behaviour.prototype);
+        for (const method of methods) {
+            if (method != "constructor" && method != "start" && method != "update" && method != "stop" && typeof(instance[method]) === "function") {
+                this[method] = instance[method].bind(this);
+            }
+        }
     }
 
     //#region internal
@@ -24,6 +64,19 @@ GF.EmptyObject = class EmptyObject extends GF.StateMachine {
                 }
             }
         }
+
+        for (const behaviour of this._behaviours) {
+            behaviour.start.call(this);
+        }
+    }
+
+    /**
+     * Update sub routine
+     */
+    _updateSubRoutine(delta) {
+        for (const behaviour of this._behaviours) {
+            behaviour.update.call(this, delta);
+        }
     }
 
     /**
@@ -38,6 +91,10 @@ GF.EmptyObject = class EmptyObject extends GF.StateMachine {
             for (const object3D of this.sceneAddedObjects) {
                 this.game.removeFromScene(object3D);
             }
+        }
+
+        for (const behaviour of this._behaviours) {
+            behaviour.destroy.call(this);
         }
 
         this.game.removeObject(this.getId(), false)
@@ -262,6 +319,7 @@ GF.EmptyObject = class EmptyObject extends GF.StateMachine {
     _update(delta) {
         if (this.alive === true) {
             this._updateStateMachine(delta);
+            this._updateSubRoutine(delta);
             this.onUpdate(delta);
         }
     }

@@ -393,11 +393,11 @@ GF.Game = class Game extends GF.StateMachine {
     //#endregion
 
     /**
-     * Publish game event message broadcasting to all listeners
+     * Broadcast a game event message
      * @param {string} name message name
      * @param {any} args arguments
      */
-    publish(name, args) {
+    broadcastMessage(name, args) {
         if (this._gameEvents[name] != null && this._gameEvents[name].subscriptions != null) {
             for (const subscription in this._gameEvents[name].subscriptions) {
                 this._gameEvents[name].subscriptions[subscription](args);
@@ -440,7 +440,11 @@ GF.Game = class Game extends GF.StateMachine {
      */
     setVariable(name, value) {
         this._variables[name] = value;
-        this.emitVariableChanged(name);
+        if (this._variablesChangeEvents[name] != null && this._variablesChangeEvents[name].subscriptions != null) {
+            for (const subscription in this._variablesChangeEvents[name].subscriptions) {
+                this._variablesChangeEvents[name].subscriptions[subscription](this._variables[name]);
+            }
+        }
     }
 
     /**
@@ -469,18 +473,6 @@ GF.Game = class Game extends GF.StateMachine {
     incrementVariable(name, amount = 1) {
         const value = this.getVariable(name);
         this.setVariable(name, (isNaN(value) ? 0 : value) + amount)
-    }
-
-    /**
-     * Emit variable change event
-     * @param {string} name event name
-     */
-    emitVariableChanged(name) {
-        if (this._variablesChangeEvents[name] != null && this._variablesChangeEvents[name].subscriptions != null) {
-            for (const subscription in this._variablesChangeEvents[name].subscriptions) {
-                this._variablesChangeEvents[name].subscriptions[subscription](this._variables[name]);
-            }
-        }
     }
 
     /**
@@ -1071,11 +1063,11 @@ GF.Game = class Game extends GF.StateMachine {
      * @param {number} delta in ms
      */
     _update(delta) {
-        this.events._update(delta);
-        this.input._update(delta);
-        this.animation._update(delta);
-
         var deltaInSeconds = delta * DELTA_TO_SECONDS
+
+        this.events._update(deltaInSeconds);
+        this.input._update(deltaInSeconds);
+        this.animation._update(deltaInSeconds);
 
         this.onUpdate(deltaInSeconds);
         if (this._updateCallback) {

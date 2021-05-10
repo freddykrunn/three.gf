@@ -581,12 +581,12 @@ class Ball extends GF.GameObject {
         if (this.startLaunchCountdown === true) {
             this.launchCountdown = 3;
             this.position.set(0,0,0);
-            this.game.publish(EVENT_BALL_LAUNCH_COUNTDOWN, this.launchCountdown);
+            this.game.broadcastMessage(EVENT_BALL_LAUNCH_COUNTDOWN, this.launchCountdown);
             this.startLaunchCountdown = false;
         } else {
             if (this.launchCountdown > 0) {
                 this.launchCountdown--;
-                this.game.publish(EVENT_BALL_LAUNCH_COUNTDOWN, this.launchCountdown);
+                this.game.broadcastMessage(EVENT_BALL_LAUNCH_COUNTDOWN, this.launchCountdown);
     
                 if (this.launchCountdown == 0) {
                     this.launch();

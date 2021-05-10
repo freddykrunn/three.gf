@@ -159,7 +159,7 @@ GF.PageManager = class PageManager {
         if (this._running === true) {
             // calculate delta
             var now = new Date().valueOf();
-            var delta = now - this._lastTime;
+            var delta = (now - this._lastTime) * 0.001;
             this._lastTime = now;
 
             if (this._currentModal != null) {
