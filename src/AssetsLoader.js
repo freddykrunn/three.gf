@@ -611,7 +611,7 @@ GF.SoundFileLoader = class SoundFileLoader extends GF.FileLoader {
      */
     load(path, onFinish, onError) {
         // load a sound
-        this.audioLoader.load( path,
+        this.audioLoader.load(path,
         function( buffer ) {
             onFinish(buffer);
         },

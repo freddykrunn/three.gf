@@ -23,8 +23,9 @@ GF.GameAnimationManager = class GameAnimationManager {
      * @param {GF.AnimationType} type the type of animation
      * @param {number} duration the duration in milliseconds
      * @param {function} onFinish on finish callback
+     * @param {function} onUpdate on update callback
      */
-    play(object, property, target, type, duration, onFinish) {
+    play(object, property, target, type, duration, onFinish, onUpdate) {
         var newAnimation = {
             animationType: "numeric",
             object: object,
@@ -35,7 +36,8 @@ GF.GameAnimationManager = class GameAnimationManager {
             currentTime: 0,
             speed: 1,
             power: type.power != null ? type.power * 2 : 2,
-            onFinish: onFinish
+            onFinish: onFinish,
+            onUpdate: onUpdate
         }
 
         if (property instanceof Array) {
@@ -166,6 +168,9 @@ GF.GameAnimationManager = class GameAnimationManager {
                     a.onUpdate(progress);
                 } else {
                     this._updateProperty(a, progress);
+                    if (a.onUpdate) {
+                        a.onUpdate(progress);
+                    }
                 }
 
                 a.currentTime += delta;

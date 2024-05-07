@@ -323,19 +323,28 @@ GF.Utils = {
      */
     newSound(listener, buffer, params) {
         var sound;
+        if (!params) {
+            params = {};
+        }
         // create a global audio source
         if (params.positional) {
             sound = new THREE.PositionalAudio( listener );
             sound.setBuffer( buffer );
-            sound.setLoop( params.loop );
-            sound.setVolume( params.volume );
-	        sound.setRefDistance( params.distance );
+            if (params.distance) {
+	            sound.setRefDistance( params.distance );
+            }
         } else {
             sound = new THREE.Audio( listener );
             sound.setBuffer( buffer );
+        }
+
+        if (params.loop) {
             sound.setLoop( params.loop );
+        }
+        if (params.volume) {
             sound.setVolume( params.volume );
         }
+        
         sound.crossOrigin = "anonymous";
         return sound;
     }

@@ -185,6 +185,10 @@ GF.Game = class Game extends GF.StateMachine {
         this.physics = new GF.PhysicsManager(this);
         this.animation = new GF.GameAnimationManager(this.events, this.camera);
 
+        if (params.multiplayerOnline) {
+            this.initializeMultiplayerClient(params.multiplayerOnline);
+        }
+
         // pointer lock 
         this.pointerLockEnabled = this._usePointerLock;
     }
@@ -228,6 +232,41 @@ GF.Game = class Game extends GF.StateMachine {
     //#endregion
 
     //#region API
+
+    //#region UI
+
+    /**
+     * Create a new image widget in game canvas
+     */
+    createImageWidget(...args) {
+        if (this._pages != null) {
+            return this._pages.getPage(GF.GAME_PAGE).canvas.createShapeImage(...args);
+        }
+        return null;
+    }
+
+    /**
+     * Create a new text widget in game canvas
+     */
+    createTextWidget(...args) {
+        if (this._pages != null) {
+            return this._pages.getPage(GF.GAME_PAGE).canvas.createShapeText(...args);
+        }
+        return null;
+    }
+
+    //#endregion
+
+    /**
+     * Initialize multiplayer client
+     * @param {*} params 
+     */
+    initializeMultiplayerClient(params) {
+        if (this.multiplayerClient) {
+            this.multiplayerClient.disconnect();
+        }
+        this.multiplayerClient = new GF.MultiplayerClient(params);
+    }
 
     /**
      * Set resolution ratio
@@ -393,6 +432,21 @@ GF.Game = class Game extends GF.StateMachine {
     //#endregion
 
     /**
+     * Create new sound player
+     * @param {string} asset audio buffer asset
+     * @param {any} params params
+     * {
+     *  positional: boolean (if the sound is positional or global)
+     *  loop: boolean,
+     *  volume: number (0 - 1)
+     *  distance: number (in case of positional=false)
+     * }
+     */
+    newSoundPlayer(asset, params) {
+        return GF.Utils.newSound(this._audioListener, this.loader.get(asset), params);
+    }
+    
+    /**
      * Broadcast a game event message
      * @param {string} name message name
      * @param {any} args arguments
@@ -494,11 +548,11 @@ GF.Game = class Game extends GF.StateMachine {
     }
 
     /**
-     * Setup listening to game variable change event 
+     * Stop listening to game variable change event 
      * @param {string} name variable name
      * @param {string} subscription the subscription
      */
-    offVariableChange(name, subscription) {
+    unbindVariableChange(name, subscription) {
         if (this._variablesChangeEvents[name] != null) {
             this._variablesChangeEvents[name].subscriptions[subscription] = undefined;
         }
@@ -637,9 +691,6 @@ GF.Game = class Game extends GF.StateMachine {
     removeObject(id, destroyObject = true) {
         const object = this._objects[id];
         if (object != null) {
-            if (destroyObject) {
-                object._destroy();
-            }
             delete this._objects[id];
 
             if (this._objectsArray != null) {
@@ -657,6 +708,22 @@ GF.Game = class Game extends GF.StateMachine {
                     }
                 }
             }
+
+            if (destroyObject) {
+                object._destroy();
+            }
+        }
+    }
+
+     /**
+     * Remove GameObjects of a certain type from the game
+     * @param {string} type 
+     */
+    removeObjectsOfType(type) {
+        var objectsToRemove = this.getObjectsOfType(type);
+
+        for (var object of objectsToRemove) {
+            object.destroy();
         }
     }
 
@@ -685,6 +752,13 @@ GF.Game = class Game extends GF.StateMachine {
      */
     getObjects() {
         return this._objectsArray;
+    }
+
+     /**
+     * Get all objects by type
+     */
+    getObjectsOfType(type) {
+        return this._objectsArray.filter((object) => object instanceof type);
     }
 
     /**

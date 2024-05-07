@@ -146,6 +146,10 @@ GF.EmptyObject = class EmptyObject extends GF.StateMachine {
      * Unsubscribe input
      */
     offKeySubscriptions() {
+        if (this._keySubscriptions == null) {
+            return;
+        }
+        
         for (const subscription of this._keySubscriptions) {
             this.game.input.unbind(subscription);
         }
@@ -155,6 +159,9 @@ GF.EmptyObject = class EmptyObject extends GF.StateMachine {
      * Unsubscribe mouse input
      */
     offMouseSubscriptions() {
+        if (this._mouseSubscriptions == null) {
+            return;
+        }
         for (const subscription of this._mouseSubscriptions) {
             this.game.input.unbindMouseEvent(subscription);
         }
@@ -284,7 +291,7 @@ GF.EmptyObject = class EmptyObject extends GF.StateMachine {
      * }
      */
     newSoundPlayer(asset, params) {
-        return GF.Utils.newSound(this.game._audioListener, this.game.loader.get(asset), params);
+        return this.game.newSoundPlayer(asset, params);
     }
 
     /**

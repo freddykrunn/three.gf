@@ -163,7 +163,7 @@ GF.GameController = class GameController {
 
         // game
         if (typeof(gameParams) === "string") {
-            this.game = window.eval.call(window, `(function (canvas, loader) { return new ${gameParams}(canvas, debugCanvas, loader) })`)(this._gameCanvas, this._gameDebugCanvas, this.assets);
+            this.game = window.eval.call(window, `(function (canvas, debugCanvas, loader) { return new ${gameParams}(canvas, debugCanvas, loader) })`)(this._gameCanvas, this._gameDebugCanvas, this.assets);
         } else {
             this.game = new GF.Game(this._gameCanvas, this._gameDebugCanvas, this.assets, gameParams.params, gameParams.onStart, gameParams.onUpdate, gameParams.onStop, gameParams.onTickUpdate, gameParams.onPointerLockChange);
         }
@@ -182,6 +182,7 @@ GF.GameController = class GameController {
 
         // page manager
         this.pages = new GF.PageManager(this._pageContainer, this._modalContainer);
+        this.game._pages = this.pages;
 
         // add pages
         if (pages) {

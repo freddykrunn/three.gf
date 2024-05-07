@@ -174,7 +174,7 @@ controller.boot("editor", {metadata: "editor.metadata.json"});
 2. Use the buttons on the top toolbar to reset the scene, load the scene or save the scene respectively
 3. The current scene is auto-saved in the browers cache every 5 seconds, so its safe if you close the browser tab accidentally
 
-### Too confusing at first glance? Start from a template
+### Start from a template
 
 There are a lot of features and different ways for making your game. For now, without documentation, you have to look through source files and see what is available, so its better to start from a template.
 
@@ -197,5 +197,4 @@ In the future, some example games will be provided in this repository too.
 
 ## Important Notice
 
-This is a WIP (Work in progress), there is no official released version yet.
-If you want to use this framework "as is" right now, bare in mind that some breaking changes can and will occur until a stable version is released
+This is a WIP (Work in progress), there is no official released version yet

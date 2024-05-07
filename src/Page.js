@@ -313,7 +313,7 @@ GF.Page = class Page {
      * @param {string} id 
      */
     _removeShape(id) {
-        const index = this._canvasShapeDrawArray.findIndex(this._canvasShapes[id]);
+        const index = this._canvasShapeDrawArray.indexOf(this._canvasShapes[id]);
         if (index >= 0) {
             this._canvasShapeDrawArray.splice(index, 1);
             this._updateDrawArray();

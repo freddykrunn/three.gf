@@ -7,7 +7,7 @@ const plumber = require("gulp-plumber");
 const fs = require("fs");
 
 
-gulp.task('build-dist', function() {
+gulp.task('build', function() {
     const filesArray = [];
 
     filesArray.push(...[
@@ -19,11 +19,14 @@ gulp.task('build-dist', function() {
     // files
     filesArray.push(...[
         "./vendor/*.js",
+        "./src/MultiplayerServerConstants.js",
+        "./src/MultiplayerClient.js",
         "./src/StateMachine.js",
         "./src/EmptyObject.js",
         "./src/GameObject.js",
         "./src/AnimationManager.js",
         "./src/AssetsLoader.js",
+        "./src/EventEmitter.js",
         "./src/EventManager.js",
         "./src/PhysicsManager.js",
         "./src/Game.js",
@@ -39,38 +42,129 @@ gulp.task('build-dist', function() {
         "./src/Editor.js"
     ]);
 
+    var stream = gulp.src(filesArray)
+    .pipe(plumber())
+    .pipe(concat("three.gf.min.js"));
 
-    return gulp.src(filesArray)
-      .pipe(plumber())
-      .pipe(concat("three.gf.min.js"))
-      .pipe(
-        babel({
-          plugins: [
-            "@babel/plugin-transform-classes",
-            "@babel/plugin-transform-for-of",
-            "@babel/plugin-transform-instanceof",
-            "@babel/plugin-transform-object-super",
-            "@babel/plugin-transform-template-literals"
-          ]
-        })
-      )
-      .pipe(uglify())
-      .pipe(header(`
-      /**
-       * Copyright notice
-       * 
-       * @credits Three.gf framework - Copyright (c) 2021 Frederico Gonçalves (MIT License) github.com/freddykrunn
-       * 
-       * Some third party libraries are bundled with the framework.
-       * The credits and copyright notice are listed below:
-       * 
-       * @credits for three.js - Copyright (c) 2010-2021 Three.js authors (MIT License)
-       * @credits for THREEx.KeyboardState.js - Copyright (c) 2013 Jerome Etienne (MIT License)
-       * @credits for jQuery v3.6.0 - Copyright (c) OpenJS Foundation and other contributors (MIT License) (jquery.org/license)
-       */
-      var GF={};var THREEx={};
-       `))
-      .pipe(gulp.dest("./dist"))
+    if (process.argv.indexOf("--uglify") >= 0)
+    {
+        stream = stream.pipe(
+            babel({
+              plugins: [
+                "@babel/plugin-transform-classes",
+                "@babel/plugin-transform-for-of",
+                "@babel/plugin-transform-instanceof",
+                "@babel/plugin-transform-object-super",
+                "@babel/plugin-transform-template-literals"
+              ]
+            })
+          ).pipe(uglify());
+    }
+
+    stream = stream.pipe(header(`
+        /**
+         * Copyright notice
+         * 
+         * @credits Three.gf framework - Copyright (c) 2021 Frederico Gonçalves (MIT License) github.com/freddykrunn
+         * 
+         * Some third party libraries are bundled with the framework.
+         * The credits and copyright notice are listed below:
+         * 
+         * @credits for three.js - Copyright (c) 2010-2021 Three.js authors (MIT License)
+         * @credits for THREEx.KeyboardState.js - Copyright (c) 2013 Jerome Etienne (MIT License)
+         * @credits for jQuery v3.6.0 - Copyright (c) OpenJS Foundation and other contributors (MIT License) (jquery.org/license)
+         */
+        var GF={};var THREEx={};
+    `))
+    .pipe(gulp.dest("./dist"))
+
+    return stream;
+});
+
+gulp.task('build-multiplayer-server', function() {
+    var stream = gulp.src(
+        [
+            "./src/MultiplayerServerConstants.js",
+            "./src/MultiplayerServerBase.js"
+        ]
+    )
+    .pipe(plumber())
+    .pipe(concat("server-base.js"))
+    .pipe(gulp.dest("./dist"))
+
+    return stream;
+});
+
+gulp.task('init-blank-multiplayer-server', function() {
+    var dir = "multiplayerServer/";
+    fs.mkdirSync(dir);
+
+    fs.copyFile("dist/server-base.js", dir + "/server-base.js", (err) => { 
+        if (err) { 
+            console.log("Error:", err); 
+        }
+    }); 
+
+// write package.json file
+fs.writeFileSync(dir + 'package.json', `
+{
+    "name": "server-name",
+    "version": "0.0.1",
+    "description": "local realtime multiplayer server",
+    "scripts": {
+      "start": "node server.js"
+    },
+    "main": "server.js",
+    "dependencies": {
+      "websocket": "^1.0.34"
+    }
+}
+`);
+  
+// write server file
+fs.writeFileSync(dir + 'server.js', `
+
+var server = require('./server-base');
+
+/**
+ * Initialize logic
+ */
+var onInitialize = function() {
+};
+
+/**
+ * On Player connected validaton
+ * @param {*} playerId 
+ * @returns 
+ */
+var onPlayerConnectedValidaton = function(playerId) {};
+
+/**
+ * On Game command received logic
+ * @param {*} playerId 
+ * @param {*} instruction 
+ * @param {*} value 
+ * @returns 
+ */
+var onGameCommandReceivedLogic = function(playerId, instruction, value) {};
+
+/**
+ * On after Player connected
+ * @param {*} playerId
+ */
+var onAfterPlayerConnectedLogic = function(playerId) {};
+
+/**
+ * On after Player disconnected
+ * @param {*} playerId
+ */
+var onAfterPlayerDisconnectedLogic = function(playerId) {};
+
+// init server on Port 3000
+server.init(3000, onInitialize, onPlayerConnectedValidaton, onGameCommandReceivedLogic, onAfterPlayerConnectedLogic, onAfterPlayerDisconnectedLogic);
+`);
+  
+return Promise.resolve(true);
 });
 
 gulp.task('init-blank', function() {  
@@ -149,7 +243,7 @@ function onStart() {
     this.setCamera({x: 0, y: 0, z: 5}, {x: 0, y: 0, z: 0});
 
     // add a cube
-    cube = new GF.GameObject(this.loader, {
+    cube = new GF.GameObject({
         model: {
             type: "box",
             size: {x: 1, y: 1, z: 1}
@@ -375,7 +469,7 @@ function onStart() {
     this.setCamera({x: 50, y: 10, z: 50}, {x: 0, y: 0, z: 0});
 
     // animate camera position and after start the game after
-    this.animation.play(this.camera.position, ["x", "y", "z"], [0, 30, 30], GF.AnimationType.SLOW_DOWN, 1500, () => {
+    this.animation.play(this.camera.position, ["x", "y", "z"], [0, 30, 30], GF.AnimationType.SLOW_DOWN, 1.5, () => {
         player1.reset();
         player2.reset();
         ball.reset();
@@ -474,8 +568,8 @@ class PongMainPage extends GF.Page {
      * On page close
      */
     onClose() {
-        this.controller.game.offVariableChange(VAR_PLAYER_1_SCORE, this.player01ScoreChangeSubscription);
-        this.controller.game.offVariableChange(VAR_PLAYER_2_SCORE, this.player02ScoreChangeSubscription);
+        this.controller.game.unbindVariableChange(VAR_PLAYER_1_SCORE, this.player01ScoreChangeSubscription);
+        this.controller.game.unbindVariableChange(VAR_PLAYER_2_SCORE, this.player02ScoreChangeSubscription);
         
         // game stop
         this.controller.game.stop();

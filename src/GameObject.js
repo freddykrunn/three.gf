@@ -12,13 +12,6 @@ GF.GameObject = class GameObject extends GF.EmptyObject {
     /**
      * Constructor
      * @param {THREE.Object3D | BuildObjectParams} object3DParams the actual THREE.Object3D or the params to build one (@see GF.Utils.build3DObject)
-     * * #### BuildObjectParams ####
-     * * `model: THREE.Geometry | BuildGeometryParams` - The params to build the geometry of the object (@see GF.Utils.buildGeometry)
-     * * `material: THREE.Material | BuildMaterialParams` - The params to build the material of the object (@see GF.Utils.buildMaterial)
-     * * `shadows: {cast: boolean, receive: boolean}` - If the object will cast/receive shadows
-     * * `position: Vector3` - Position for the object
-     * * `rotation: Vector3` - Rotation for the object
-     * * `scale: Vector3` - Scale for the object
      * @param {PhysicsParams} physicsParams the physics params (optional)
      * * #### PhysicsParams ####
      * * `GF.CollisionVolume: collisionVolume` - collision volume
@@ -57,11 +50,11 @@ GF.GameObject = class GameObject extends GF.EmptyObject {
 
         // physics
         if (physicsParams != null) {
-            this.hasPhysics = true;
+            this.hasPhysics = physicsParams.hasPhysics != null ? physicsParams.hasPhysics : true;
             this.speed = new THREE.Vector3(0,0,0);
             this.movementDirection = new THREE.Vector3(0,0,0);
 
-            this.dynamic = physicsParams.dynamic;
+            this.dynamic = physicsParams.dynamic != null ? physicsParams.dynamic : false;
             this.affectedByGravity = physicsParams.gravity != null ? physicsParams.gravity : true;
             this.mass = physicsParams.mass != null ? physicsParams.mass : 1;
             this.restitution = physicsParams.restitution != null ? physicsParams.restitution : 0;
@@ -98,9 +91,13 @@ GF.GameObject = class GameObject extends GF.EmptyObject {
                 "z": []
             };
         }
+        else
+        {
+            this.hasPhysics = false;
+        }
     }
 
-        //#region Physics
+    //#region Physics
 
     /**
      * Update physics on collision
@@ -367,6 +364,14 @@ GF.GameObject = class GameObject extends GF.EmptyObject {
     //#region Generic API
 
     /**
+     * Get Object Id
+     * @returns 
+     */
+    getId() {
+        return this._id;
+    }
+
+    /**
      * Add a child THREE.Object3D or a GameObject
      * @param {THREE.Object3D | GF.GameObject} object the object
      * @param {boolean} affectsRayCollision if the object affects ray collision (only for THREE.Object3D type)
@@ -628,7 +633,7 @@ GF.GameObject = class GameObject extends GF.EmptyObject {
             }
 
             // update logic
-            if (this.hasPhysics && this.object3D) {
+            if (this.hasPhysics && this.dynamic && this.object3D) {
                 if (delta <= MS_PER_UPDATE) {
                     this._internalUpdatePhysics(delta);
                 } else {
